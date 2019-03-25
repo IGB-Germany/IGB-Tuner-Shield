@@ -1,0 +1,10 @@
+<map id="serial::dabPrintMenu" name="serial::dabPrintMenu">
+<area shape="rect" id="node2" href="$namespaceserial.html#ad9b9321d74da9669c3542f2607c51808" title="serial::dabPrintMenuMain" alt="" coords="208,5,377,32"/>
+<area shape="rect" id="node4" href="$namespaceserial.html#a6e245310a147f5bebf283d5e896ca8f7" title="serial::dabPrintMenuTechnical" alt="" coords="195,56,391,83"/>
+<area shape="rect" id="node6" href="$namespaceserial.html#a19a7c236f5ed40c574677fb58e213e7d" title="serial::dabPrintMenuScan" alt="" coords="207,107,378,133"/>
+<area shape="rect" id="node8" href="$namespaceserial.html#abcdd60815dcc516baf540ecdda57a5dd" title="serial::dabPrintMenuDevice" alt="" coords="203,157,382,184"/>
+<area shape="rect" id="node3" href="$dab_menu_serial_8h.html#a60ac15029338dad84755475e48bed98e" title="dabMenuMainSerial" alt="" coords="452,5,588,32"/>
+<area shape="rect" id="node5" href="$dab_menu_serial_8h.html#ae83d16772fe3d961958ee3557c2c25fe" title="dabMenuTechnicalSerial" alt="" coords="439,56,601,83"/>
+<area shape="rect" id="node7" href="$dab_menu_serial_8h.html#adf94449973dd72871be24296700f4e50" title="dabMenuScanSerial" alt="" coords="451,107,589,133"/>
+<area shape="rect" id="node9" href="$dab_menu_serial_8h.html#aceda66b343b8bc0d6a6a1b0a43caad51" title="dabMenuDeviceSerial" alt="" coords="447,157,593,184"/>
+</map>

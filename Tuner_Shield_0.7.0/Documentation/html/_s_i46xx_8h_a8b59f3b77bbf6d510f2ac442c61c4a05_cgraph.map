@@ -1,0 +1,12 @@
+<map id="deviceSetUpAfterFirmware" name="deviceSetUpAfterFirmware">
+<area shape="rect" id="node2" href="$_s_i46xx_8cpp.html#a13f6a33111ae6ffc5302354c67d165b9" title="deviceBoot" alt="" coords="459,56,545,83"/>
+<area shape="rect" id="node6" href="$_s_i46xx_8cpp.html#a3b8c9a4b92def9acf79c98d084f69791" title="deviceGetStatus" alt="" coords="443,5,561,32"/>
+<area shape="rect" id="node7" href="$namespaceserial.html#a3cf467819445204fea01cedd0f3ea9ef" title="serial::devicePrintStatus" alt="" coords="228,208,391,235"/>
+<area shape="rect" id="node8" href="$_s_i46xx_8cpp.html#aa86336bc2aad0bf803c4c0ad0d1d62fd" title="deviceSetAllProperties" alt="" coords="233,107,385,133"/>
+<area shape="rect" id="node10" href="$_s_i46xx_8cpp.html#aa998b91af00fb0479d7b00ae49b20c8a" title="deviceGetImage" alt="" coords="445,157,559,184"/>
+<area shape="rect" id="node11" href="$namespaceserial.html#a4693993a6abfa10577cc0a6be3c64a6a" title="serial::devicePrintImage" alt="" coords="230,259,389,285"/>
+<area shape="rect" id="node3" href="$_s_i46xx_8cpp.html#a833a5efc66544a1f3f12b0ee49e555ac" title="writeSPI" alt="" coords="613,56,684,83"/>
+<area shape="rect" id="node4" href="$_s_i46xx_8cpp.html#a1cc152da7a422af4a4c0d9b315ef3646" title="printHexStr" alt="" coords="732,81,819,108"/>
+<area shape="rect" id="node5" href="$_s_i46xx_8cpp.html#adef30cff5fcfd33a339e78bf2bb7a0ae" title="readSPI" alt="" coords="615,107,683,133"/>
+<area shape="rect" id="node9" href="$_s_i46xx_8cpp.html#a273e897a9910d93c1e19face60b13675" title="deviceSetProperty" alt="" coords="439,107,565,133"/>
+</map>
