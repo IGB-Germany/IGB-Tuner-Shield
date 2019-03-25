@@ -1,9 +1,0 @@
-<map id="dabGetRsqStatus" name="dabGetRsqStatus">
-<area shape="rect" id="node2" href="$dab_menu_serial_8h.html#a60ac15029338dad84755475e48bed98e" title="dabMenuMainSerial" alt="" coords="192,5,328,32"/>
-<area shape="rect" id="node3" href="$dab_menu_serial_8h.html#ae83d16772fe3d961958ee3557c2c25fe" title="dabMenuTechnicalSerial" alt="" coords="179,56,341,83"/>
-<area shape="rect" id="node4" href="$dab_menu_serial_8h.html#adf94449973dd72871be24296700f4e50" title="dabMenuScanSerial" alt="" coords="389,233,528,260"/>
-<area shape="rect" id="node5" href="$dab_menu_tft_8h.html#a81dbbf22ce2ca053a46c1016f499fe53" title="dabMenuMainTft" alt="" coords="201,157,319,184"/>
-<area shape="rect" id="node6" href="$_s_i46xx_8h.html#aee708f089919bdc63ea3b9e4f594fd02" title="dabBandScan" alt="" coords="209,208,311,235"/>
-<area shape="rect" id="node7" href="$_s_i46xx_8h.html#a2da1c5f128a8c3e45fdf1d1e7cca91e2" title="dabScanUp" alt="" coords="215,259,305,285"/>
-<area shape="rect" id="node8" href="$_s_i46xx_8h.html#afa38b1373fe897a17978d32e0625dbc0" title="dabScanDown" alt="" coords="207,309,313,336"/>
-</map>

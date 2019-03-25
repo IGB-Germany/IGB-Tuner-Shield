@@ -1,7 +1,0 @@
-<map id="readSpiDynamic" name="readSpiDynamic">
-<area shape="rect" id="node2" href="$_s_i46xx_8h.html#a59d50867a80b7fc67616e9ce607ecbee" title="dabParseEnsemble" alt="" coords="181,5,316,32"/>
-<area shape="rect" id="node4" href="$_s_i46xx_8h.html#a6a844f05e82f6c546e15dc794f14ca71" title="dabGetFrequencyTable" alt="" coords="171,56,327,83"/>
-<area shape="rect" id="node3" href="$dab_menu_serial_8h.html#a60ac15029338dad84755475e48bed98e" title="dabMenuMainSerial" alt="" coords="375,5,511,32"/>
-<area shape="rect" id="node5" href="$dab_menu_serial_8h.html#adf94449973dd72871be24296700f4e50" title="dabMenuScanSerial" alt="" coords="559,81,697,108"/>
-<area shape="rect" id="node6" href="$_s_i46xx_8h.html#aee708f089919bdc63ea3b9e4f594fd02" title="dabBandScan" alt="" coords="391,107,494,133"/>
-</map>

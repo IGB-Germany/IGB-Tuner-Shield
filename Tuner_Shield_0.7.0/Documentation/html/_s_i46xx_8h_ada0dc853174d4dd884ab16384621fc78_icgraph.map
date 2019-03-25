@@ -1,7 +1,0 @@
-<map id="deviceGetProperty" name="deviceGetProperty">
-<area shape="rect" id="node2" href="$_s_i46xx_8h.html#a2be2f77b17a457074ede8162db39e533" title="deviceGetAllProperties" alt="" coords="181,5,335,32"/>
-<area shape="rect" id="node4" href="$_s_i46xx_8h.html#ad61e938ed17bbd22df302e37cf4c985e" title="fmGetAllProperties" alt="" coords="193,56,323,83"/>
-<area shape="rect" id="node5" href="$_s_i46xx_8h.html#aba9d83c21f50d5f03f7fa86dd4282490" title="dabGetAllProperties" alt="" coords="189,107,327,133"/>
-<area shape="rect" id="node3" href="$dab_menu_serial_8h.html#aceda66b343b8bc0d6a6a1b0a43caad51" title="dabMenuDeviceSerial" alt="" coords="391,5,537,32"/>
-<area shape="rect" id="node6" href="$dab_menu_serial_8h.html#ae83d16772fe3d961958ee3557c2c25fe" title="dabMenuTechnicalSerial" alt="" coords="383,107,545,133"/>
-</map>

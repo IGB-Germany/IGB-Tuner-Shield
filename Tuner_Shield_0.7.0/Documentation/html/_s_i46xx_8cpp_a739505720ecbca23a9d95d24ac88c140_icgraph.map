@@ -1,7 +1,0 @@
-<map id="deviceGetRssi" name="deviceGetRssi">
-<area shape="rect" id="node2" href="$dab_menu_serial_8h.html#ae83d16772fe3d961958ee3557c2c25fe" title="dabMenuTechnicalSerial" alt="" coords="351,26,513,53"/>
-<area shape="rect" id="node3" href="$dab_menu_tft_8h.html#a315198ea0b501cd90ce3ebed2755d087" title="dabMenuTechnicalTft" alt="" coords="159,26,303,53"/>
-<area shape="rect" id="node4" href="$_s_i46xx_8h.html#a950db2b02aec4784288d0b248beb4440" title="fmTestVaractorCap" alt="" coords="164,127,297,154"/>
-<area shape="rect" id="node6" href="$_s_i46xx_8h.html#a2648ade6b300228dd2cfaf4e209d4b3a" title="dabTestVaractorCap" alt="" coords="161,77,301,103"/>
-<area shape="rect" id="node5" href="$fm_menu_8h.html#a2c02186ba54cee1cb9c7c8ba7a0d0cb1" title="fmMenu" alt="" coords="398,127,466,154"/>
-</map>

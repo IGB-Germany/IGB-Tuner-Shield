@@ -1,8 +1,0 @@
-<map id="dabScanUp" name="dabScanUp">
-<area shape="rect" id="node2" href="$_s_i46xx_8cpp.html#a14bb166bd4a13411ea7f664e7247bff3" title="dabTuneIndex" alt="" coords="177,24,279,51"/>
-<area shape="rect" id="node6" href="$_s_i46xx_8cpp.html#a1af3357813df2aa29b09f665aa06c409" title="dabGetRsqStatus" alt="" coords="165,75,291,101"/>
-<area shape="rect" id="node7" href="$namespaceserial.html#aad6942759604c012d125784c8364cf86" title="serial::dabPrintRsqStatus" alt="" coords="143,125,313,152"/>
-<area shape="rect" id="node3" href="$_s_i46xx_8cpp.html#a833a5efc66544a1f3f12b0ee49e555ac" title="writeSPI" alt="" coords="361,24,432,51"/>
-<area shape="rect" id="node4" href="$_s_i46xx_8cpp.html#a1cc152da7a422af4a4c0d9b315ef3646" title="printHexStr" alt="" coords="480,49,567,76"/>
-<area shape="rect" id="node5" href="$_s_i46xx_8cpp.html#adef30cff5fcfd33a339e78bf2bb7a0ae" title="readSPI" alt="" coords="363,75,431,101"/>
-</map>
