@@ -29,11 +29,6 @@
 #include "dabMenuSerial.h"
 #endif/*SERIAL_MONITOR*/
 
-/*Touch display application*/
-//#define TOUCH_DISPLAY
-#ifdef TOUCH_DISPLAY
-#include "touchDisplayApplication.h"
-#endif/*TOUCH_DISPLAY*/
 
 void setup()
 {
@@ -56,11 +51,6 @@ void loop()
   /*Call application*/
   callTactileSwitches();
 #endif/*BUTTON*/
-
-#ifdef TOUCH_DISPLAY
-  /*Call application*/
-  callTouchDisplayApplication();
-#endif/*TOUCH_DISPLAY*/
 
 #ifdef SERIAL_MONITOR
   /*Call application*/
