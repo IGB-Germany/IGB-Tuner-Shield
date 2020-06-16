@@ -1,10 +1,10 @@
-/*include guard*/
+//include guard
 #ifndef SI468X_H
 #define SI468X_H
 
 /*
   Tuner Shield DAB+
-  by Marcus Bockting
+  by IGB
 
   Tuner circuit SI468x
   SPI MOSI:   Pin 11
@@ -17,35 +17,48 @@
   Flash memory circuit SST26W onboard
   SPI SS:     Pin 2
 
-  Flash:  331556 Bytes (97%)
-  RAM:    1035 Bytes (50%)
+  Flash:  31252 Bytes (96%)
+  RAM:    1019 Bytes (49%)
 */
 
 /*Version*/
 const char swVersion[] = "0.8.0";
 
-/*Slave Select Pins*/
-/*Tuner circuit*/
-const unsigned char pinSlaveSelectTuner = 8;
-const unsigned char pinInterruptTuner   = 6;
-const unsigned char pinResetTuner       = 3;
-/*Memory circuit*/
-const unsigned char pinSlaveSelectFlash = 2;
+enum SPI_FREQUENCY {SPI_FREQUENCY = 8000000UL};
 
-/*Max numbers of retry when chip is busy*/
-const unsigned char maxRetry = 10;
+enum PINS
+{
+  //Tuner circuit
+  PIN_DEVICE_SLAVE_SELECT = 8,
+  PIN_DEVICE_INTERRUPT = 6,
+  PIN_DEVICE_RESET = 3,
+  //Memory circuit
+  PIN_FLASH_SLAVE_SELECT = 2,
+};
 
-/*Device specific delay times*/
-const unsigned char tDeviceGeneralDelay = 5;      /*>=5ms*/
-const unsigned char tDeviceReset        = 50;     /*>=50ms*/
-const unsigned char tDeviceAfterReset   = 10;     /*>=10ms*/
-/*Boot time 63ms at analog fm, 198ms at DAB*/
-const unsigned short tDeviceBoot        = 300;    /*Delay time after boot() in ms*/
+//Max numbers of retry when chip is busy
+enum MAX_RETRY {MAX_RETRY = 10};
 
-/*Tuner circuit specific delay times*/
-const unsigned char  tDabGeneralDelay    = 20; /* >=20ms */
-const unsigned short tDabSeekTuneIndex   = 600;/* >=600ms */
-const unsigned short tDabGetEnsembleInfo = 200;/* >=200ms */
+//Device specific delay times
+enum DURATIONS
+{
+  //Very critical for device to start up
+  //https://github.com/arduino/Arduino/issues/129
+  //delay does not work in ctor, delayMicroseconds() work in CTOR
+  //max delayMicroseconds(16383) = delayMicroseconds(0x3FFF)
+
+  DURATION_5000_MIKROS  = 5000,//3ms see flowchart; 5ms tRSTB_HI see timing
+  DURATION_3000_MIKROS  = 3000,//20us see flowchart; 3ms tPOWER_UP see timing
+  TIME_REPLY            = 3000,//?ms see flowchart; 1 ms see timing CTS polls @ 1 ms; tested 2500us
+  TIME_LOAD_INIT        = 4000,//4ms see flowchart; ?ms see timing
+  TIME_BOOT             = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
+
+  //DAB specific delay times
+  //in milliseconds
+  DURATION_20_MILLIS    = 20,//Get ensemble info
+  DURATION_200_MILLIS   = 200 //Seek Tune Index 600ms
+};
+
 
 /*Global variables of device*/
 /*Image*/
@@ -129,24 +142,22 @@ extern struct devicePropertyValueList_t
   unsigned short devicePropertyValue;
 } devicePropertyValueList[numberDeviceProperties];
 
-/*General device functions*/
-/*Initalize device*/
-bool deviceInitalize();
+
 
 /*0x00 RD_REPLY Get Device Status Information*/
 deviceStatusInformation_t deviceGetStatus();
 /*Sets the power up arguments*/
 bool deviceSetPowerUpArguments(devicePowerUpArguments_t &devicePowerUpArguments);
 /*0x01 POWER_UP Power-up the device and set system settings*/
-bool devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled = 1);
-/*0x04 HOST_LOAD Loads an image from HOST over command interface*/
-bool deviceHostLoad(unsigned char package[], unsigned short len);
-/*0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus*/
-bool deviceFlashLoad(unsigned long address, unsigned char subCommand = 0);
+void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled = 1);
+//0x04 HOST_LOAD Loads an image from HOST over command interface
+void deviceHostLoad(unsigned char package[], unsigned short len);
+//0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus
+void deviceFlashLoad(unsigned long address, unsigned char subCommand = 0);
 /*0x06 LOAD_INIT Prepares the bootloader to receive a new image*/
-bool deviceLoadInit();
-/*0x07 BOOT Boots the image currently loaded in RAM*/
-bool deviceBoot();
+void deviceLoadInit();
+//0x07 BOOT Boots the image currently loaded in RAM
+void deviceBoot();
 /*0x08 GET_PART_INFO Get Device Part Number*/
 bool deviceGetPartNumber(devicePartNumber_t &devicePartNumber);
 /*0x09 GET_SYS_STATE Get Device Image*/
@@ -165,20 +176,18 @@ bool deviceGetProperty(unsigned short devicePropertyId, unsigned short &devicePr
 bool deviceWriteStorage(unsigned short offset, unsigned char data[], unsigned char len);
 /*0x16 READ_STORAGE Reads data from the on board storage area from a specified offset*/
 bool deviceReadStorage(unsigned short offset, unsigned char data[], unsigned char len);
-/*0x97 HD_PLAY_ALERT_TONE Plays the HD Alert Tone*/
-bool deviceAlertTone();
 /*0xE5 TEST_GET_RSSI returns the reported RSSI in 8.8 format*/
 unsigned short deviceGetRssi();
 /*0xE800 TEST_GET_BER_INFO Reads the current BER rate*/
 bool deviceGetBitErrorRate(unsigned short &deviceBitErrorRate);
 
-/*Helper functions device*/
-/*Reset device*/
-bool deviceReset(unsigned char resetPin = pinResetTuner, unsigned char durationReset = tDeviceReset, unsigned char timeAfterReset = tDeviceAfterReset);
+//Helper functions device
+void deviceInitalize();
+void deviceReset(unsigned char resetPin = PIN_DEVICE_RESET);
 /*Check if device is busy*/
-bool deviceReady(unsigned char buf[], unsigned short  len, unsigned short tDelay = tDeviceGeneralDelay, bool printBuffer = false);
+bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay = 0, bool printBuffer = false);
 /*Check if device has seek tune completed*/
-bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned short tDelay = tDabSeekTuneIndex, bool printBuffer = false);
+bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned short tDelay = DURATION_200_MILLIS, bool printBuffer = false);
 /*Get all device property values*/
 bool deviceGetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num = numberDeviceProperties);
 /*Set all device properties*/
@@ -516,141 +525,107 @@ unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection =
 
 
 //Tuner commands
-const unsigned char RD_REPLY          = 0x00;//0x00 RD_REPLY Returns the status byte and data for the last command sent to the device
-const unsigned char POWER_UP          = 0x01;//0x01 POWER_UP Power-up the device and set system settings
+enum COMMANDS_DEVICE
+{
+  RD_REPLY          = 0x00,//0x00 RD_REPLY Returns the status byte and data for the last command sent to the device
+  POWER_UP          = 0x01,//0x01 POWER_UP Power-up the device and set system settings
 
-const unsigned char HOST_LOAD         = 0x04;//0x04 HOST_LOAD Loads an image from HOST over command interface
-const unsigned char FLASH_LOAD        = 0x05;//0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus
-const unsigned char LOAD_INIT         = 0x06;//0x06 LOAD_INIT Prepares the bootloader to receive a new image
-const unsigned char BOOT              = 0x07;//0x07 BOOT Boots the image currently loaded in RAM
-const unsigned char GET_PART_INFO     = 0x08;//0x08 GET_PART_INFO Reports basic information about the device
-const unsigned char GET_SYS_STATE     = 0x09;//0x09 GET_SYS_STATE Reports system state information
-const unsigned char GET_POWER_UP_ARGS = 0x0A;//0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
+  HOST_LOAD         = 0x04,//0x04 HOST_LOAD Loads an image from HOST over command interface
+  FLASH_LOAD        = 0x05,//0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus
+  LOAD_INIT         = 0x06,//0x06 LOAD_INIT Prepares the bootloader to receive a new image
+  BOOT              = 0x07,//0x07 BOOT Boots the image currently loaded in RAM
+  GET_PART_INFO     = 0x08,//0x08 GET_PART_INFO Reports basic information about the device
+  GET_SYS_STATE     = 0x09,//0x09 GET_SYS_STATE Reports system state information
+  GET_POWER_UP_ARGS = 0x0A,//0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
+  READ_OFFSET       = 0x10,//0x10 READ_OFFSET Reads a portion of response buffer from an offset.
 
-const unsigned char GET_FUNC_INFO     = 0x12;//0x12 GET_FUNC_INFO Returns the Function revision information of the device
-const unsigned char SET_PROPERTY      = 0x13;//0x13 SET_PROPERTY Sets the value of a property
-const unsigned char GET_PROPERTY      = 0x14;//0x14 GET_PROPERTY Retrieve the value of a property
-const unsigned char WRITE_STORAGE     = 0x15;//0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset.
-const unsigned char READ_STORAGE      = 0x16;//0x16 READ_STORAGE Reads data from the
+  GET_FUNC_INFO     = 0x12,//0x12 GET_FUNC_INFO Returns the Function revision information of the device
+  SET_PROPERTY      = 0x13,//0x13 SET_PROPERTY Sets the value of a property
+  GET_PROPERTY      = 0x14,//0x14 GET_PROPERTY Retrieve the value of a property
+  WRITE_STORAGE     = 0x15,//0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset.
+  READ_STORAGE      = 0x16,//0x16 READ_STORAGE Reads data from the
 
-const unsigned char PLAY_ALERT_TONE   = 0x97;//0x97 PLAY_ALERT_TONE
-const unsigned char TEST_GET_RSSI     = 0xE5;//0xE5 TEST_GET_RSSI Returns the reported RSSI in 8.8 format.
+  TEST_GET_RSSI     = 0xE5,//0xE5 TEST_GET_RSSI Returns the reported RSSI in 8.8 format.
+};
 
-/*DAB commands*/
-const unsigned char GET_DIGITAL_SERVICE_LIST      = 0x80;//0x80 GET_DIGITAL_SERVICE_LIST Gets a service list of the ensemble.
-const unsigned char START_DIGITAL_SERVICE         = 0x81;//0x81 START_DIGITAL_SERVICE Starts an audio or data service.
-const unsigned char STOP_DIGITAL_SERVICE          = 0x82;//0x82 STOP_DIGITAL_SERVICE Stops an audio or data service.
-const unsigned char GET_DIGITAL_SERVICE_DATA      = 0x84;//0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services.
 
-const unsigned char DAB_TUNE_FREQ                 = 0xB0;//0xB0 DAB_TUNE_FREQ Tunes the DAB Receiver to tune to a frequency between 168.16 and 239.20 MHz defined by the frequency table through DAB_SET_FREQ_LIST.
-const unsigned char DAB_DIGRAD_STATUS             = 0xB2;//0xB2 DAB_DIGRAD_STATUS Returns status information about the digital radio and ensemble.
-const unsigned char DAB_GET_EVENT_STATUS          = 0xB3;//0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio.
-const unsigned char DAB_GET_ENSEMBLE_INFO         = 0xB4;//GxB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
-const unsigned char DAB_GET_ANNOUNCEMENT_SUPPORT_INFO = 0xB5;//Gets the announcement support information
-const unsigned char DAB_GET_ANNOUNCEMENT_INFO     = 0xB6;//gets announcement information from the announcement queue
-const unsigned char DAB_GET_SERVICE_LINKING_INFO  = 0xB7;//0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID.
-const unsigned char DAB_SET_FREQ_LIST             = 0xB8;//0xB8 DAB_SET_FREQ_LIST Sets the DAB frequency table. The frequencies are in units of kHz.
-const unsigned char DAB_GET_FREQ_LIST             = 0xB9;//0xB9 DAB_GET_FREQ_LIST Gets the DAB frequency table
-const unsigned char DAB_GET_COMPONENT_INFO        = 0xBB;//0xBB DAB_GET_COMPONENT_INFO Gets information about components within the ensemble if available.
-const unsigned char DAB_GET_TIME                  = 0xBC;//0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset or the UTC.
-const unsigned char DAB_GET_AUDIO_INFO            = 0xBD;//0xBD DAB_GET_AUDIO_INFO Gets audio service info
-const unsigned char DAB_GET_SUBCHAN_INFO          = 0xBE;//0xBE DAB_GET_SUBCHAN_INFO Gets sub-channel info
-const unsigned char DAB_GET_FREQ_INFO             = 0xBF;//0xBF DAB_GET_FREQ_INFO Gets ensemble freq info
-const unsigned char DAB_GET_SERVICE_INFO          = 0xC0;//0xC0 DAB_GET_SERVICE_INFO Gets information about a service
-const unsigned char DAB_GET_OE_SERVICES_INFO      = 0xC1;//Get ensemble ID(s) in which the passed in service ID will reside
-const unsigned char DAB_ACF_STATUS                = 0xC2;//DAB_ACF_STATUS Returns status information about automatically controlled features
+//Comands DAB
+enum COMMANDS_DAB
+{
+  GET_DIGITAL_SERVICE_LIST          = 0x80,  //0x80 GET_DIGITAL_SERVICE_LIST Gets a service list of the ensemble.
+  START_DIGITAL_SERVICE             = 0x81,  //0x81 START_DIGITAL_SERVICE Starts an audio or data service.
+  STOP_DIGITAL_SERVICE              = 0x82,  //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service.
+  GET_DIGITAL_SERVICE_DATA          = 0x84,//0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services.
 
-const unsigned char DAB_TEST_GET_BER_INFO         = 0xE8;//0xE8 DAB_TEST_GET_BER_INFO Reads the current BER rate
+  DAB_TUNE_FREQ                     = 0xB0,//0xB0 DAB_TUNE_FREQ Tunes the DAB Receiver to tune to a frequency between 168.16 and 239.20 MHz defined by the frequency table through DAB_SET_FREQ_LIST.
+  DAB_DIGRAD_STATUS                 = 0xB2,//0xB2 DAB_DIGRAD_STATUS Returns status information about the digital radio and ensemble.
+  DAB_GET_EVENT_STATUS              = 0xB3,  //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio.
+  DAB_GET_ENSEMBLE_INFO             = 0xB4,  //GxB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
+  DAB_GET_ANNOUNCEMENT_SUPPORT_INFO = 0xB5,  //Gets the announcement support information
+  DAB_GET_ANNOUNCEMENT_INFO         = 0xB6,  //gets announcement information from the announcement queue
+  DAB_GET_SERVICE_LINKING_INFO      = 0xB7,  //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID.
+  DAB_SET_FREQ_LIST                 = 0xB8,//0xB8 DAB_SET_FREQ_LIST Sets the DAB frequency table. The frequencies are in units of kHz.
+  DAB_GET_FREQ_LIST                 = 0xB9,  //0xB9 DAB_GET_FREQ_LIST Gets the DAB frequency table
+  DAB_GET_COMPONENT_INFO            = 0xBB,  //0xBB DAB_GET_COMPONENT_INFO Gets information about components within the ensemble if available.
+  DAB_GET_TIME                      = 0xBC,  //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset or the UTC.
+  DAB_GET_AUDIO_INFO                = 0xBD,  //0xBD DAB_GET_AUDIO_INFO Gets audio service info
+  DAB_GET_SUBCHAN_INFO              = 0xBE,  //0xBE DAB_GET_SUBCHAN_INFO Gets sub-channel info
+  DAB_GET_FREQ_INFO                 = 0xBF,  //0xBF DAB_GET_FREQ_INFO Gets ensemble freq info
 
+  DAB_GET_SERVICE_INFO              = 0xC0,  //0xC0 DAB_GET_SERVICE_INFO Gets information about a service
+  DAB_GET_OE_SERVICES_INFO          = 0xC1,//Provides other ensemble (OE) services (FIG 0/24)information for the passed in service ID
+  DAB_ACF_STATUS                    = 0xC2,//Returns status information about automatically controlled features
+
+  DAB_TEST_GET_BER_INFO             = 0xE8//Reads the current BER rate
+};
 
 //Frequencies between 168,16 MHz and 239,20 MHz
 //Frequency distance = 1712Hz
 
-// DAB channels
-//VHF-Band I
-const unsigned long CHAN_2A = 47936;
-const unsigned long CHAN_2B = 49648;
-const unsigned long CHAN_2C = 51360;
-const unsigned long CHAN_2D = 53072;
-
-const unsigned long CHAN_3A = 54928;
-const unsigned long CHAN_3B = 56640;
-const unsigned long CHAN_3C = 58352;
-const unsigned long CHAN_3D = 60064;
-
-const unsigned long CHAN_4A = 61936;
-const unsigned long CHAN_4B = 63648;
-const unsigned long CHAN_4C = 65360;
-const unsigned long CHAN_4D = 67072;
-
-//VHF-Band III
-const unsigned long CHAN_5A = 174928;
-const unsigned long CHAN_5B = 176640;
-const unsigned long CHAN_5C = 178352; //DR Deutschland
-const unsigned long CHAN_5D = 180064;
-
-const unsigned long CHAN_6A = 181936;
-const unsigned long CHAN_6B = 183648;
-const unsigned long CHAN_6C = 185360;
-const unsigned long CHAN_6D = 187072;
-
-const unsigned long CHAN_7A = 188928;
-const unsigned long CHAN_7B = 190640;//hr Radio
-const unsigned long CHAN_7C = 192352;
-const unsigned long CHAN_7D = 194064;
-
-const unsigned long CHAN_8A = 195936;
-const unsigned long CHAN_8B = 197648;
-const unsigned long CHAN_8C = 199360;//Mittelfranken
-const unsigned long CHAN_8D = 201072;
-
-const unsigned long CHAN_9A = 202928;
-const unsigned long CHAN_9B = 204640;
-const unsigned long CHAN_9C = 206352;
-const unsigned long CHAN_9D = 208064;
-
-const unsigned long CHAN_10A = 209936;
-const unsigned long CHAN_10N = 210096;
-const unsigned long CHAN_10B = 211648;
-const unsigned long CHAN_10C = 213360;
-const unsigned long CHAN_10D = 215072;
-
-const unsigned long CHAN_11A = 216928;//SWR RP
-const unsigned long CHAN_11N = 217088;
-const unsigned long CHAN_11B = 218640;//DRS BW
-const unsigned long CHAN_11C = 220352;
-const unsigned long CHAN_11D = 222064;//BR Bayern
-
-const unsigned long CHAN_12A = 223936;
-const unsigned long CHAN_12N = 224096;
-const unsigned long CHAN_12B = 225648;
-const unsigned long CHAN_12C = 227360;
-const unsigned long CHAN_12D = 229072;//Bayern
-
-const unsigned long CHAN_13A = 230784;
-const unsigned long CHAN_13B = 232496;
-const unsigned long CHAN_13C = 234208;
-const unsigned long CHAN_13D = 235776;
-const unsigned long CHAN_13E = 237488;
-const unsigned long CHAN_13F = 239200;
-
-//1,5-GHz-Band (L-Band)
-const unsigned long CHAN_LA = 1452960;
-const unsigned long CHAN_LB = 1454672;
-const unsigned long CHAN_LC = 1456384;
-const unsigned long CHAN_LD = 1458096;
-const unsigned long CHAN_LE = 1459808;
-const unsigned long CHAN_LF = 1461520;
-const unsigned long CHAN_LG = 1463232;
-const unsigned long CHAN_LH = 1464944;
-const unsigned long CHAN_LI = 1466656;
-const unsigned long CHAN_LJ = 1468368;
-const unsigned long CHAN_LK = 1470080;
-const unsigned long CHAN_LL = 1471792;
-const unsigned long CHAN_LM = 1473504;
-const unsigned long CHAN_LN = 1475216;
-const unsigned long CHAN_LO = 1476928;
-const unsigned long CHAN_LP = 1478640;
+enum VHF_Band_III
+{
+  CHAN_5A = 174928,
+  CHAN_5B = 176640,
+  CHAN_5C = 178352,//DR Deutschland D__00188
+  CHAN_5D = 180064,
+  CHAN_6A = 181936,
+  CHAN_6B = 183648,
+  CHAN_6C = 185360,
+  CHAN_6D = 187072,
+  CHAN_7A = 188928,
+  CHAN_7B = 190640,//hr Radio
+  CHAN_7C = 192352,
+  CHAN_7D = 194064,
+  CHAN_8A = 195936,
+  CHAN_8B = 197648,
+  CHAN_8C = 199360,//Mittelfranken
+  CHAN_8D = 201072,
+  CHAN_9A = 202928,
+  CHAN_9B = 204640,
+  CHAN_9C = 206352,
+  CHAN_9D = 208064,
+  CHAN_10A = 209936,
+  CHAN_10N = 210096,
+  CHAN_10B = 211648,
+  CHAN_10C = 213360,
+  CHAN_10D = 215072,
+  CHAN_11A = 216928,//SWR RP D__00217
+  CHAN_11N = 217088,
+  CHAN_11B = 218640,//DRS BW
+  CHAN_11C = 220352,
+  CHAN_11D = 222064,//BR Bayern
+  CHAN_12A = 223936,
+  CHAN_12N = 224096,
+  CHAN_12B = 225648,
+  CHAN_12C = 227360,//Hessen Süd
+  CHAN_12D = 229072,
+  CHAN_13A = 230784,
+  CHAN_13B = 232496,
+  CHAN_13C = 234208,
+  CHAN_13D = 235776,
+  CHAN_13E = 237488,
+  CHAN_13F = 239200
+};
 
 //dabMaxNumFreq = 48
 const unsigned long frequencyTableAll[41] = {
@@ -685,15 +660,6 @@ const unsigned long frequency_list_ch[] =     {CHAN_12A, CHAN_12C, CHAN_12D, CHA
 
 const unsigned long frequencyTableRheinlandPfalz[]  = {CHAN_5C, CHAN_11A};
 
-/*
-  Italien, RAS
-  10B ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œRAS1-DABÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-  10C ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œDABMediaÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-  10D ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œRAS2-DABÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-  12A ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œEuro DAB ItaliaÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-  12B ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œMUX DAB+ TAAÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-  12C ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œDAB ItaliaÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½
-*/
 const unsigned long frequencyTableItalienRas[]      = {CHAN_10B, CHAN_10C, CHAN_10D, CHAN_12A, CHAN_12B, CHAN_12C};
 
 const unsigned long frequencyTableItalienTrentino[] = {CHAN_10A, CHAN_12D};

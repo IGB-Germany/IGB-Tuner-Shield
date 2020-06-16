@@ -28,7 +28,7 @@
 
 /*SPI communication layer*/
 #include "ComDriverSpi.h"
-ComDriverSpi tuner(pinSlaveSelectTuner, 4000000);
+ComDriverSpi tuner(PIN_DEVICE_SLAVE_SELECT, SPI_FREQUENCY);
 
 /*properties of tuner circuit*/
 #include "properties.h"
@@ -43,25 +43,18 @@ ComDriverSpi tuner(pinSlaveSelectTuner, 4000000);
 /*Global variables of device*/
 /*Image*/
 unsigned char deviceImage = 0;
-
 /*Firmware Information*/
 struct deviceFirmwareInformation_t deviceFirmwareInformation = {0, 0, 0, 0, 0, 0, 0, 0};
-
 /*Property id*/
 unsigned short devicePropertyId = 0;
-
 /*Property value*/
 long devicePropertyValue = 0;
-
 /*Receive signal strength indicator*/
 unsigned short deviceRssi = 0;
-
 /*Tuning capacitor value*/
 unsigned short varCap = 0;
-
 /*Device status information*/
 struct deviceStatusInformation_t deviceStatusInformation = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
 /*Device part number*/
 struct devicePartNumber_t devicePartNumber = {0, 0, 0};
 
@@ -391,7 +384,7 @@ bool hostLoadDataTuner(unsigned long startAddress, unsigned long fileSize)
   unsigned char dataBuffer[maxPackageSize];
 
   //Flash Memory
-  FlashSst26 flashSst26(pinSlaveSelectFlash, 4000000);
+  FlashSst26 flashSst26(PIN_FLASH_SLAVE_SELECT, SPI_FREQUENCY);
 
   FlashSst26::id_t id = flashSst26.readId();
   Serial.print(F("Jedec Id:\t"));
@@ -453,25 +446,6 @@ bool printHexStr(unsigned char str[], unsigned long len)
   return true;
 }
 
-/*Initalize device*/
-bool deviceInitalize()
-{
-  //SPI.begin();
-  /*Tuner slave select pin*/
-  //pinMode(pinSlaveSelectTuner, OUTPUT);
-  //digitalWrite(pinSlaveSelectTuner, HIGH);
-  /*Tuner reset pin*/
-  pinMode(pinResetTuner, OUTPUT);
-  digitalWrite(pinResetTuner, HIGH);
-  /*Tuner interrupt pin*/
-  pinMode(pinInterruptTuner, INPUT);
-  //digitalWrite(pinInterruptTuner, HIGH);
-  /*flash memory slave select pin*/
-  pinMode(pinSlaveSelectFlash, OUTPUT);
-  digitalWrite(pinSlaveSelectFlash, HIGH);
-
-  return true;
-}
 
 //Run setup functions before firmware
 bool deviceLoadFirmware()
@@ -479,17 +453,13 @@ bool deviceLoadFirmware()
   //Print version information
   serial::printVersionInformation();
 
-  //Reset device
   deviceReset();
-
-  //Print device status information
-  serial::devicePrintStatus(deviceGetStatus());
 
   //Power up device
   devicePowerUp(devicePowerUpArguments);
 
   //Print device status information
-  serial::devicePrintStatus(deviceGetStatus());
+  //serial::devicePrintStatus(deviceGetStatus());
 
   //FullPatch
   hostLoadDataTuner(addrBootloaderPatchFull, sizeBootloaderPatchFull);
@@ -518,29 +488,13 @@ bool deviceLoadFirmware()
   return true;
 }
 
-
-/*Reset device*/
-bool deviceReset(unsigned char resetPin, unsigned char durationReset, unsigned char timeAfterReset)
-{
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(F("devReset"));
-#endif
-
-  digitalWrite(resetPin, LOW);
-  delay(durationReset);
-  digitalWrite(resetPin, HIGH);
-  delay(timeAfterReset);
-
-  return true;
-}
-
 /*Check if device is busy*/
 bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay, bool printBuffer)
 {
   unsigned char cmd[1] = {RD_REPLY};
 
   /*retry until device not busy anymore*/
-  for (unsigned char retry = 0; retry < maxRetry; retry++)
+  for (unsigned char retry = 0; retry < MAX_RETRY; retry++)
   {
     /*delay before reading*/
     delay(tDelay);
@@ -554,7 +508,7 @@ bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay,
     }
     /*Clear to send and no error*/
     if (buf[0] >> 6 == 0x02) break;
-    if (retry == maxRetry)
+    if (retry == MAX_RETRY)
     {
       printHexStr(buf, len);
       return false;
@@ -568,8 +522,8 @@ bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned sh
 {
   unsigned char cmd[1] = {RD_REPLY};
 
-  /*retry until maxRetry*/
-  for (unsigned char retry = 0; retry < maxRetry; retry++)
+  /*retry until MAX_RETRY*/
+  for (unsigned char retry = 0; retry < MAX_RETRY; retry++)
   {
     /*delay before reading*/
     delay(tDelay);
@@ -585,7 +539,7 @@ bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned sh
     /*Seek tune complete (STC) and Clear to send (CTS) and and no error*/
     if (((buf[0] & 1) == 1) && (buf[0] >> 6 == 0x02)) break;
 
-    if (retry == maxRetry)
+    if (retry == MAX_RETRY)
     {
       printHexStr(buf, len);
       return false;
@@ -594,26 +548,12 @@ bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned sh
   return true;
 }
 
-/*0x00 RD_REPLY Get Device Status Information*/
 deviceStatusInformation_t deviceGetStatus()
 {
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(RD_REPLY, HEX);
-#endif
-  /*
-      RD_REPLY command must be called to return the status byte and data for the last command sent to the device.
-      This command is also used to poll the status byte as needed. To poll the status byte, send the RD_REPLY
-      command and read the status byte. This can be done regardless of the state of the CTS bit in the status register.
-      Please refer to individual command descriptions for the format of returned data. RD_REPLY is a hardware
-      command and can be issued while device is powered down. For commands where the size of the response is
-      returned, the user should send the RD_REPLY command to read the SIZE first. Each time the RD_REPLY
-      command is sent, the STAUS bytes will still be returned.
-  */
   unsigned char cmd[1] = {RD_REPLY};
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
   tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
-
   tuner.readSpi(buf, sizeof(buf), ComDriverSpi::transferEnd);
 
   deviceStatusInformation.cts      = buf[0] >> 7 & 1;
@@ -629,7 +569,7 @@ deviceStatusInformation_t deviceGetStatus()
   deviceStatusInformation.arbErr   = buf[3] >> 1 & 1;
   deviceStatusInformation.nonRecErr = buf[3] & 1;
 
-  /*error*/
+  //error
   if (deviceStatusInformation.cmdErr == 1)
   {
     unsigned char cmd[1] = {RD_REPLY};
@@ -719,24 +659,31 @@ bool deviceSetPowerUpArguments(devicePowerUpArguments_t &devicePowerUpArguments)
 }
 
 
-/*0x01 POWER_UP Power-up the device and set system settings*/
-bool devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled)
+void deviceInitalize()
 {
-  /*
-    The POWER_UP initiates the boot process to move the device from power down to power up mode. There are two
-    possible boot scenarios: Host image load and FLASH image load. When the host is loading the image the host first
-    executes the POWER_UP command to set the system settings REF_CLK, etc). A LOAD_INIT command then
-    prepares the bootloader to receive a new image. After the LOAD_INIT command, using the HOST_LOAD
-    command loads the image into the device RAM. After the RAM is loaded the host issues the BOOT command.
-    When booting a FLASH image the host issues the POWER_UP command to set the system settings. Then issues
-    the FLASH_LOAD command to select and load the image from FLASH. Once the image is loaded the host sends
-    the BOOT command to boot the application. Power-up is complete when the CTS bit is set. This command may
-    only be sent while the device is powered down. Note: FLASH_LOAD is not supported in A0A or A0B revisions.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(POWER_UP, HEX);
-#endif
+  //Tuner interrupt pin ~INT
+  pinMode(PIN_DEVICE_INTERRUPT, INPUT_PULLUP);
+  //Tuner reset pin ~RST
+  pinMode(PIN_DEVICE_RESET, OUTPUT);
+  digitalWrite(PIN_DEVICE_RESET, HIGH);
+  //slave select pin Si468x
+  pinMode(PIN_DEVICE_SLAVE_SELECT, OUTPUT);
+  digitalWrite(PIN_DEVICE_SLAVE_SELECT, HIGH);
+  //slave select pin flash memory
+  pinMode(PIN_FLASH_SLAVE_SELECT, OUTPUT);
+  digitalWrite(PIN_FLASH_SLAVE_SELECT, HIGH);
+}
 
+void deviceReset(unsigned char resetPin)
+{
+  digitalWrite(resetPin, LOW);
+  digitalWrite(resetPin, HIGH);
+  delayMicroseconds(DURATION_5000_MIKROS);
+}
+
+//0x01 POWER_UP Power-up the device and set system settings
+void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled)
+{
   unsigned char cmd[1] = {POWER_UP};
   unsigned char data[15];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
@@ -757,32 +704,18 @@ bool devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned cha
   data[13] = 0;                                           //Arg14 0
   data[14] = 0;                                           //Arg15 0
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(data, sizeof(data), ComDriverSpi::transferEnd)) return false;
-
-  if (!deviceReady(buf, sizeof(buf))) return false;
-
-  return true;
+  tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
+  tuner.writeSpi(data, sizeof(data), ComDriverSpi::transferEnd);
+  
+  delayMicroseconds(DURATION_3000_MIKROS);
+  
+  deviceReady(buf, sizeof(buf));
 }
 
-/*0x04 HOST_LOAD Loads an image from HOST over command interface*/
-bool deviceHostLoad(unsigned char package[], unsigned short len)
+void deviceHostLoad(unsigned char package[], unsigned short len)
 {
-  /*
-    HOST_LOAD loads an image from HOST over command interface. It sends up to 4096 bytes of application image
-    to the bootloader. Note: This command is much more efficient when the image is sent as multiples of 4 bytes. The
-    command is complete when the CTS bit (and optional interrupt) is set. The ERR bit (and optional interrupt) is set if
-    an invalid argument is sent. Note that only a single interrupt occurs if both the CTS and ERR bits are set. The
-    command may only be sent in powerup mode.
-  */
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  //Serial.println(HOST_LOAD, HEX);
-#endif
-  /*
-      4096 bytes of application image
-  */
-  if (len > 0x1000) return false;
+  //Validity ? Maximal 4096 bytes of application image
+  if (len > 0x1000) len = 0x1000;
 
   unsigned char cmd[4];
 
@@ -791,28 +724,12 @@ bool deviceHostLoad(unsigned char package[], unsigned short len)
   cmd[2] = 0x00; /*ARG2*/
   cmd[3] = 0x00; /*ARG3*/
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(package, len, ComDriverSpi::transferEnd)) return false;
-
-  //if (!deviceReady(buf, sizeof(buf))) return false;
-
-  return true;
+  tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
+  tuner.writeSpi(package, len, ComDriverSpi::transferEnd);
 }
 
-/*0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus*/
-bool deviceFlashLoad(unsigned long address, unsigned char subCommand)
+void deviceFlashLoad(unsigned long address, unsigned char subCommand)
 {
-  /*
-    FLASH_LOAD loads the firmware image from an externally attached SPI flash over the secondary SPI bus. The
-    image must be contiguous on the flash. The command is complete when the CTS bit (and optional interrupt) is set.
-    The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a single interrupt occurs if
-    both the CTS and ERR bits are set. The command may only be sent in powerup mode. Note: FLASH_LOAD is only
-    supported after patching the bootloader.
-  */
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(FLASH_LOAD, HEX);
-#endif
 
   unsigned char cmd[1] = {FLASH_LOAD};
   unsigned char data[11];
@@ -830,69 +747,44 @@ bool deviceFlashLoad(unsigned long address, unsigned char subCommand)
   data[9] = 0x00;   //ARG10 0x00
   data[10] = 0x00;  //ARG11 0x00
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(data, sizeof(data), ComDriverSpi::transferEnd)) return false;
+  tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
+  tuner.writeSpi(data, sizeof(data), ComDriverSpi::transferEnd);
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
+  deviceReady(buf, sizeof(buf));
 
-  return true;
 }
 
-/*0x06 LOAD_INIT Prepares the bootloader to receive a new image*/
-bool deviceLoadInit()
+void deviceLoadInit()
 {
-  /*
-    LOAD_INIT prepares the bootloader to receive a new image. It will force the bootloader state to waiting for a new
-    LOAD command (HOST_LOAD or FLASH_LOAD.) LOAD_INIT command must always be sent prior to a
-    HOST_LOAD or a FLASH_LOAD command. The command is complete when the CTS bit (and optional interrupt)
-    is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a single interrupt
-    occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
-  */
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(LOAD_INIT, HEX);
-#endif
-
   unsigned char cmd[2];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
   cmd[0] = LOAD_INIT;
   cmd[1] = 0x00;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd))) return false;
+  ///wait for device - to be improved
+  delayMicroseconds(TIME_LOAD_INIT);
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
-
-  return true;
+  tuner.writeSpi(cmd, sizeof(cmd));
 }
 
-/*0x07 BOOT Boots the image currently loaded in RAM*/
-bool deviceBoot()
+void deviceBoot()
 {
-  /*
-    BOOT command boots the image currently loaded in RAM. The command is complete when the CTS bit (and
-    optional interrupt) is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a
-    single interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
-  */
-
   unsigned char cmd[2];
   unsigned char buf[5] = {0xff, 0xff, 0xff, 0xff, 0xff};
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(BOOT, HEX);
-#endif
 
   cmd[0] = BOOT;
   cmd[1] = 0;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd))) return false;
+  tuner.writeSpi(cmd, sizeof(cmd));
 
-  if (!deviceReady(buf, sizeof(buf), tDeviceBoot)) return false;
-
-  return true;
+  //wait for device - to be improved
+  for (uint8_t i = 0; i < 30; i++)
+  {
+    delayMicroseconds (TIME_BOOT);
+  }
 }
 
-/*0x08 GET_PART_INFO Get Device Part Number*/
 bool deviceGetPartNumber(devicePartNumber_t &devicePartNumber)
 {
   /*
@@ -1160,28 +1052,6 @@ bool deviceReadStorage(unsigned short offset, unsigned char data[], unsigned cha
   return true;
 }
 
-/*0x97 HD_PLAY_ALERT_TONE Plays the HD Alert Tone*/
-bool deviceAlertTone()
-{
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(PLAY_ALERT_TONE, HEX);
-#endif
-
-  unsigned char cmd[1];
-  unsigned char arg[1];
-  unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-
-  cmd[0] = PLAY_ALERT_TONE;
-  arg[0] = 0;
-
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
-
-  if (!deviceReady(buf, sizeof(buf))) return false;
-
-  return true;
-}
-
 /*0xE5 TEST_GET_RSSI returns the reported RSSI in 8.8 format*/
 unsigned short deviceGetRssi()
 {
@@ -1304,7 +1174,7 @@ bool dabStartDigitalService(unsigned long dabServiceId, unsigned long dabCompone
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay))return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS))return false;
 
   return true;
 }
@@ -1343,7 +1213,7 @@ bool dabStopDigitalService(unsigned long dabServiceId, unsigned long dabComponen
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS)) return false;
 
   return true;
 }
@@ -1381,7 +1251,7 @@ bool dabGetServiceData(struct dabServiceData_t &dabServiceData, unsigned char st
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   dabServiceData.errorInterrupt     =  buf[4] >> 2 & 1;
   dabServiceData.overflowInterrupt  =  buf[4] >> 1 & 1;
@@ -1410,7 +1280,7 @@ bool dabGetServiceData(struct dabServiceData_t &dabServiceData, unsigned char st
   /*initalize buffer*/
   for (unsigned short i = 0; i < (24 + dabServiceData.dataLength); i++) payloadBuffer[i] = 0xff;
 
-  if (!deviceReady(payloadBuffer, sizeof(payloadBuffer), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(payloadBuffer, sizeof(payloadBuffer), DURATION_20_MILLIS, true)) return false;
 
   //For DLS and DLS+ a two byte prefix is added to the payload.
 
@@ -1508,7 +1378,7 @@ bool dabGetDigitalServiceListHeader(struct dabServiceListHeader_t &dabServiceLis
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   /*Read 12 bytes:
     0...3 status
@@ -1605,7 +1475,7 @@ bool dabParseEnsemble(struct dabEnsemble_t* &dabEnsembleList, unsigned char &dab
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(header, sizeof(header), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(header, sizeof(header), DURATION_20_MILLIS, true)) return false;
 
   dabListSize = (unsigned short) header[5] << 8 | header[4];
   dabListVersion = (unsigned short)header[7] << 8 | header[6];
@@ -1806,7 +1676,7 @@ bool dabTuneIndex(unsigned char index, unsigned short varCap, unsigned char inje
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceSeekTuneComplete(buf, sizeof(buf), tDabSeekTuneIndex, false))return false;
+  if (!deviceSeekTuneComplete(buf, sizeof(buf), DURATION_200_MILLIS, false))return false;
 
   return true;
 }
@@ -1896,7 +1766,7 @@ bool dabGetEventStatus(struct dabEventInformation_t &dabEventInfo, unsigned char
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   dabEventInfo.ensembleReconfigInterrupt        = buf[4] >> 7 & 1;
   dabEventInfo.ensembleReconfigWarningInterrupt = buf[4] >> 6 & 1;
@@ -1943,7 +1813,7 @@ dabEnsembleInformation_t dabGetEnsembleInfo()
   tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
   tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd);
 
-  deviceReady(buf, sizeof(buf), tDabGetEnsembleInfo, true);
+  deviceReady(buf, sizeof(buf), DURATION_200_MILLIS, true);
 
   dabEnsembleInformation.ensembleId        = (unsigned short)buf[5] << 8 | buf[4];
   /*16 characters for the ensemble label terminated by '/0'*/
@@ -2025,7 +1895,7 @@ bool dabGetFrequencyTable(unsigned long* &dabFreqTable, unsigned char &dabNumFre
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS)) return false;
 
   /*Number of frequencies*/
   dabNumFreq = buf[4];
@@ -2120,7 +1990,7 @@ bool dabGetComponentInformation(unsigned long dabServiceId, unsigned long dabCom
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   dabComponentInformation.globalId            = buf[4];
   dabComponentInformation.language            = buf[6] & 0x3F;
@@ -2178,7 +2048,7 @@ bool dabGetDateTimeInformation(unsigned short &year, unsigned char &month, unsig
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   year    = (unsigned short)buf[5] << 8 | buf[4];
   month   = buf[6];
@@ -2216,7 +2086,7 @@ bool dabGetComponentAudioInfo(dabAudioComponentInformation_t &dabAudioComponentI
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   /*
     AUDIO_BIT_RATE[15:0] Audio bit rate of the current audio service (kbps).
@@ -2278,7 +2148,7 @@ bool dabGetComponentTechnicalInformation(unsigned long dabServiceId, unsigned lo
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS)) return false;
 
   dabComponentTechnicalInformation.serviceMode    = buf[4];
   dabComponentTechnicalInformation.protectionInfo = buf[5];
@@ -2313,7 +2183,7 @@ bool dabGetEnsembleFrequencyInformationList()
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, true)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, true)) return false;
 
   return true;
 }
@@ -2349,7 +2219,7 @@ bool dabGetDigitalServiceInformation(struct dabServiceInformation_t &dabServiceI
   if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
   if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
 
-  if (!deviceReady(buf, sizeof(buf), tDabGeneralDelay, false)) return false;
+  if (!deviceReady(buf, sizeof(buf), DURATION_20_MILLIS, false)) return false;
 
   /*serviceInfo1*/
   dabServiceInformation.serviceLinkingInfoFlag = buf[4] >> 6 & 1;
