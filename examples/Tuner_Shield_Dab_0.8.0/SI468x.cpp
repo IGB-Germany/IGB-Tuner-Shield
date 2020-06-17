@@ -41,26 +41,12 @@ ComDriverSpi tuner(PIN_DEVICE_SLAVE_SELECT, SPI_FREQUENCY);
 
 
 /*Global variables of device*/
-/*Image*/
-unsigned char deviceImage = 0;
-/*Firmware Information*/
-struct deviceFirmwareInformation_t deviceFirmwareInformation = {0, 0, 0, 0, 0, 0, 0, 0};
-/*Property id*/
-unsigned short devicePropertyId = 0;
-/*Property value*/
-long devicePropertyValue = 0;
-/*Receive signal strength indicator*/
-unsigned short deviceRssi = 0;
-/*Tuning capacitor value*/
-unsigned short varCap = 0;
-/*Device status information*/
-struct deviceStatusInformation_t deviceStatusInformation = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-/*Device part number*/
-struct devicePartNumber_t devicePartNumber = {0, 0, 0};
 
-/*Device power up arguments*/
-struct devicePowerUpArguments_t devicePowerUpArguments =
+//Device power up arguments
+devicePowerUpArguments_t devicePowerUpArguments =
 {
+  //CTS
+  1,
   //CLK_MODE[5:4]
   //devicePowerUpArguments.clockMode
   //0 //Oscillator and buffer are powered down.
@@ -135,11 +121,11 @@ struct devicePowerUpArguments_t devicePowerUpArguments =
   //devicePowerUpArguments.iBiasRun = 10;//ok
   //devicePowerUpArguments.iBiasRun = 5;//nok
   //devicePowerUpArguments.iBiasRun = 0;//ok
-
 };
 
+
 /*Device property value list*/
-struct devicePropertyValueList_t devicePropertyValueList[numberDeviceProperties] =
+devicePropertyValueList_t devicePropertyValueList[numberDeviceProperties] =
 {
   //General Properties
   //2xReserved DEVNTIEN 5xReserved CTSIEN ERR_CMDIEN DACQIEN DSRVIEN Reserved Reserved Reserved STCIEN
@@ -425,8 +411,6 @@ bool hostLoadDataTuner(unsigned long startAddress, unsigned long fileSize)
     deviceHostLoad(dataBuffer, maxPackageSize);
   }
 
-  //delay(tGeneralDelay);
-
   return true;
 }
 
@@ -439,7 +423,7 @@ bool printHexStr(unsigned char str[], unsigned long len)
   {
     snprintf(string, 7, "0x%02x ", str[i]);
     Serial.print(string);
-    delay(1);
+    //delay(1);
   }
   Serial.println();//next line
 
@@ -479,16 +463,13 @@ bool deviceLoadFirmware()
   //Set device properties
   deviceSetAllProperties(devicePropertyValueList, numberDeviceProperties);
 
-  //Get Device Image
-  deviceGetImage(deviceImage);
-
   //Print Device Image
-  serial::devicePrintImage(deviceImage);
+  serial::devicePrintImage(deviceGetImage());
 
   return true;
 }
 
-/*Check if device is busy*/
+//Check if device is busy
 bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay, bool printBuffer)
 {
   unsigned char cmd[1] = {RD_REPLY};
@@ -497,7 +478,7 @@ bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay,
   for (unsigned char retry = 0; retry < MAX_RETRY; retry++)
   {
     /*delay before reading*/
-    delay(tDelay);
+    delayMicroseconds(tDelay);
     /*Read reply*/
     tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
     tuner.readSpi(buf, len, ComDriverSpi::transferEnd);
@@ -550,6 +531,7 @@ bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned sh
 
 deviceStatusInformation_t deviceGetStatus()
 {
+  deviceStatusInformation_t deviceStatusInformation = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   unsigned char cmd[1] = {RD_REPLY};
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
@@ -582,82 +564,6 @@ deviceStatusInformation_t deviceGetStatus()
   return deviceStatusInformation;
 }
 
-/*Sets the power up arguments*/
-bool deviceSetPowerUpArguments(devicePowerUpArguments_t &devicePowerUpArguments)
-{
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(F("devSetPowerUpArguments"));
-#endif
-
-  //CLK_MODE[5:4]
-  //0 : Oscillator and buffer are powered down.
-  //1 : Reference clock generator is in crystal mode.
-  //2 : Oscillator is off and circuit acts as single ended buffer.
-  //3 : Oscillator is off and circuit acts as differential buffer.
-  devicePowerUpArguments.clockMode = 1;
-
-  //TR_SIZE[3:0]
-  //Range 0-15
-  //TR_SIZE(19,2MHz)=  7 see table
-  //TR_SIZE(30MHz)  = 11
-  //TR_SIZE = lowerTR_SIZE + (higherTR_SIZE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ lowerTR_SIZE) x (f ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ fLower)/(fHigher ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ fLower)
-  //TR_SIZE(30MHz)   =  0x0A + (0x0F - 0x0A) x (30 - 27)/(37,2 - 27) = 0x0A + 0x04 x (3/10,2) = 0x0B = 11
-  devicePowerUpArguments.trSize = 11;//ok
-  //devicePowerUpArguments.trSize = 15;//ok
-
-  //IBIAS[6:0]
-  //Range 0-127, 10 uA steps, 0 to 1270 uA
-  devicePowerUpArguments.iBiasStart = 127;//ok
-  //devicePowerUpArguments.iBiasStart = 60;//ok
-  //devicePowerUpArguments.iBiasStart = 30;//ok
-  //devicePowerUpArguments.iBiasStart = 5;//ok
-  //devicePowerUpArguments.iBiasStart = 1;//ok
-
-  //XTAL Frequency in Hz. The supported crystal frequencies are: 6,12,18,24,30 MHz [5.4 MHz - 6.6 MHz]
-  //[10.8 MHz - 13.2 MHz] [16.8 MHz - 19.8 MHz] [21.6 MHz - 26.4 MHz] [27 MHz - 46.2 MHz]
-  //Range 5,4 - 46,2 MHz
-  //devicePowerUpArguments.xtalFreq = 19200000UL;
-  devicePowerUpArguments.xtalFreq = 30000000UL;//ok
-  //devicePowerUpArguments.xtalFreq = 30000002UL;//ok
-  //devicePowerUpArguments.xtalFreq = 29999996UL;//ok
-
-  //CTUN programs a pair of internal tuning capacitances
-  //Cload       = capacity of crystal from manufacturers datasheet
-  //Cparasitic  = capacity from pcb etc.
-  //Cx          = external discrete capacitance if Cload >14pF
-
-  //CTUN= 2*(Cload - Cparasitic)- Cx
-  //63 steps for CTUN starting at 0x00...0x3F = 0...63 = 0-24pF
-  //0,375 pF per step
-
-  //Cload = 18pF, Cparasitic = 1pF, Cx=0, CTUN = 34pF = 91
-  //Maximum CTUN = 24pF = 63
-  //Cload = 13pF, Cparasitic = 1pF, Cx=0, CTUN = 24pF = 63
-  //Cload = 10pF, Cparasitic = 1pF, Cx=0, CTUN = 18pF = 48
-
-  //Crystal with Cload <=13pF is necessary
-
-  //devicePowerUpArguments.cTune = 63;//Max
-  devicePowerUpArguments.cTune = 48;//ok
-  //devicePowerUpArguments.cTune = 24;//ok
-  //devicePowerUpArguments.cTune = 12;//nok
-
-  //IBIAS_RUN[6:0]
-  //To reduce the impact of appearance of unwanted spurs in tuner chain for,
-  //it is recommended to reduce the biasing current by 2x
-  //If set to 0, will use the same value as iBiasStart
-  //Range 0-127, 10 uA steps, 10 to 1270 uA
-
-  //devicePowerUpArguments.iBiasRun = 127;//ok
-  devicePowerUpArguments.iBiasRun = 60;//ok
-  //devicePowerUpArguments.iBiasRun = 30;//ok
-  //devicePowerUpArguments.iBiasRun = 10;//ok
-  //devicePowerUpArguments.iBiasRun = 5;//nok
-  //devicePowerUpArguments.iBiasRun = 0;//ok
-
-  return true;
-}
-
 
 void deviceInitalize()
 {
@@ -676,39 +582,40 @@ void deviceInitalize()
 
 void deviceReset(unsigned char resetPin)
 {
-  digitalWrite(resetPin, LOW);
   digitalWrite(resetPin, HIGH);
-  delayMicroseconds(DURATION_5000_MIKROS);
+  digitalWrite(resetPin, LOW);
+  //Power supplies ramped up and stable to RSTB rise tPSUP:RSTB_HI 10 μs
+  digitalWrite(resetPin, HIGH);
+  delayMicroseconds(DURATION_RESET);
 }
 
-//0x01 POWER_UP Power-up the device and set system settings
-void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled)
+void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments)
 {
   unsigned char cmd[1] = {POWER_UP};
   unsigned char data[15];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
-  data[0] = ctsInterruptEnabled & 1;                      //Arg 1   CTSIEN 0 0 0 0 0 0 0  Clear to Sent Interrupt Enabled
-  data[1] = devicePowerUpArguments.clockMode << 4 | devicePowerUpArguments.trSize; //Arg 2 0 0 CLK_MODE[1:0] TR_SIZE[3:0]
-  data[2] = devicePowerUpArguments.iBiasStart;            //ARG3 0 IBIAS[6:0]
+  data[0] = (devicePowerUpArguments.cts & 1) << 7;     //Arg 1   CTSIEN 0 0 0 0 0 0 0  Clear to Sent Interrupt Enabled
+  data[1] = (devicePowerUpArguments.clockMode & 0x03) << 4 | (devicePowerUpArguments.trSize & 0xF);  //Arg 2 0 0 CLK_MODE[1:0] TR_SIZE[3:0]
+  data[2] = devicePowerUpArguments.iBiasStart & 0x7F;     //ARG3 0 IBIAS[6:0]
   data[3] = devicePowerUpArguments.xtalFreq & 0xFF;       //Arg4 XTAL_FREQ[7:0]
   data[4] = devicePowerUpArguments.xtalFreq >> 8 & 0xFF;  //Arg5 XTAL_FREQ[15:8]
   data[5] = devicePowerUpArguments.xtalFreq >> 16 & 0xFF; //Agr6 XTAL_FREQ[23:16]
   data[6] = devicePowerUpArguments.xtalFreq >> 24 & 0xFF; //Agr7 XTAL_FREQ[31:24]
-  data[7] = devicePowerUpArguments.cTune;                 //Arg8 0 0 CTUN[5:0]
+  data[7] = devicePowerUpArguments.cTune & 0x3F;          //Arg8 0 0 CTUN[5:0]
   data[8] = 1 << 4;                                       //ARG9 0 0 0 1 0 0 0 0
   data[9] = 0;                                            //Arg10 0
   data[10] = 0;                                           //Arg11 0
   data[11] = 0;                                           //Arg12 0
-  data[12] = devicePowerUpArguments.iBiasRun;             //Arg13
+  data[12] = devicePowerUpArguments.iBiasRun & 0x3F;      //Arg13
   data[13] = 0;                                           //Arg14 0
   data[14] = 0;                                           //Arg15 0
 
   tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
   tuner.writeSpi(data, sizeof(data), ComDriverSpi::transferEnd);
-  
-  delayMicroseconds(DURATION_3000_MIKROS);
-  
+
+  delayMicroseconds(DURATION_POWER_UP);
+
   deviceReady(buf, sizeof(buf));
 }
 
@@ -730,7 +637,6 @@ void deviceHostLoad(unsigned char package[], unsigned short len)
 
 void deviceFlashLoad(unsigned long address, unsigned char subCommand)
 {
-
   unsigned char cmd[1] = {FLASH_LOAD};
   unsigned char data[11];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
@@ -763,8 +669,7 @@ void deviceLoadInit()
   cmd[1] = 0x00;
 
   ///wait for device - to be improved
-  delayMicroseconds(TIME_LOAD_INIT);
-
+  delayMicroseconds(DURATION_LOAD_INIT);
   tuner.writeSpi(cmd, sizeof(cmd));
 }
 
@@ -785,80 +690,45 @@ void deviceBoot()
   }
 }
 
-bool deviceGetPartNumber(devicePartNumber_t &devicePartNumber)
+devicePartNumber_t deviceGetPartNumber()
 {
-  /*
-    GET_PART_INFO reports basic information about the device such as Part Number, Part Version, ROM ID, etc.
-    This command will hold CTS until the reply is available. The command is complete when the CTS bit (and optional
-    interrupt) is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a single
-    interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode. Note:
-    GET_PART_INFO command is not supported in firmware revision A0A.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(GET_PART_INFO, HEX);
-#endif
-
+  devicePartNumber_t devicePartNumber;
   unsigned char cmd[2];
   unsigned char buf[23] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   cmd[0] = GET_PART_INFO;
   cmd[1] = 0;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd))) return false;
-
-  if (!deviceReady(buf, sizeof(buf))) return false;
+  tuner.writeSpi(cmd, sizeof(cmd));
+  deviceReady(buf, sizeof(buf), 10000);
 
   devicePartNumber.chipRev    = buf[4];
   devicePartNumber.romId      = buf[5];
   devicePartNumber.partNumber = buf[9] << 8 | buf[8];
 
-  return true;
+  return devicePartNumber;
 }
 
-/*0x09 GET_SYS_STATE Get Device Image*/
-bool deviceGetImage(unsigned char &deviceImage)
+unsigned char deviceGetImage()
 {
-  /*
-    GET_SYS_STATE reports basic system state information such as which mode is active; FM, DAB, etc. The
-    command is complete when the CTS bit (and optional interrupt) is set. The ERR bit (and optional interrupt) is set if
-    an invalid argument is sent. Note that only a single interrupt occurs if both the CTS and ERR bits are set. The
-    command may only be sent in powerup mode. Note: GET_SYS_STATE command is not supported in firmware
-    revision A0A.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(GET_SYS_STATE, HEX);
-#endif
-
+  unsigned char systemState;
   unsigned char cmd[2];
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   cmd[0] = GET_SYS_STATE;
   cmd[1] = 0;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd))) return false;
+  tuner.writeSpi(cmd, sizeof(cmd));
+  deviceReady(buf, sizeof(buf), DURATION_REPLY);
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
+  systemState = buf[4];
 
-  deviceImage = buf[4];
-
-  return true;
+  return systemState;
 }
 
-/*0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP*/
 devicePowerUpArguments_t deviceGetPowerUpArguments()
 {
-  /*
-    GET_POWER_UP_ARGS reports basic information about the device such as which parameters were used during
-    power up. This command will hold CTS until the reply is available. The command is complete when the CTS bit
-    (and optional interrupt) is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that
-    only a single interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup
-    mode.
-  */
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(GET_POWER_UP_ARGS, HEX);
-#endif
-
+  devicePowerUpArguments_t devicePowerUpArguments;
   unsigned char cmd[2];
   unsigned char buf[18] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -866,7 +736,7 @@ devicePowerUpArguments_t deviceGetPowerUpArguments()
   cmd[1] = 0;
 
   tuner.writeSpi(cmd, sizeof(cmd));
-  deviceReady(buf, sizeof(buf));
+  deviceReady(buf, sizeof(buf), DURATION_REPLY);
 
   devicePowerUpArguments.clockMode  = buf[6] >> 4 & 3;
   devicePowerUpArguments.trSize     = buf[6] & 0xF;
@@ -878,30 +748,18 @@ devicePowerUpArguments_t deviceGetPowerUpArguments()
   return devicePowerUpArguments;
 }
 
-/*0x12 GET_FUNC_INFO Get Firmware Information*/
-bool deviceGetFirmwareInformation(deviceFirmwareInformation_t &deviceFirmwareInfo)
+deviceFirmwareInformation_t deviceGetFirmwareInformation()
 {
-  /*
-    GET_FUNC_INFO returns the function revision number for currently loaded firmware (FMHD, AM etc.) as opposed
-    to GET_PART_INFO command that provides the revision number for the combo firmware. For example,
-    GET_PART_INFO would return A0B is the firmware revision while GET_FUNC_INFO would return 1.0.4 for FM
-    function revision if the currently running firmware function is FM. The command is complete when the CTS bit (and
-    optional interrupt) is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a
-    single interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(GET_FUNC_INFO, HEX);
-#endif
-
+  deviceFirmwareInformation_t deviceFirmwareInfo = {0, 0, 0, 0, 0, 0, 0, 0};
   unsigned char cmd[2];
   unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   cmd[0] = GET_FUNC_INFO;
   cmd[1] = 0;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd))) return false;
+  tuner.writeSpi(cmd, sizeof(cmd));
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
+  deviceReady(buf, sizeof(buf), DURATION_REPLY);
 
   deviceFirmwareInfo.revisionNumberMajor = buf[4];
   deviceFirmwareInfo.revisionNumberMinor = buf[5];
@@ -912,22 +770,11 @@ bool deviceGetFirmwareInformation(deviceFirmwareInformation_t &deviceFirmwareInf
   deviceFirmwareInfo.localModFlag = buf[7] & 1;
   deviceFirmwareInfo.svnId = buf[8] | (unsigned long)buf[9] << 8 | (unsigned long)buf[10] << 16 | (unsigned long)buf [11] << 24;
 
-  return true;
+  return deviceFirmwareInfo;
 }
 
-/*0x13 SET_PROPERTY Sets the value of a property*/
-bool deviceSetProperty(unsigned short devicePropertyId, unsigned short devicePropertyValue)
+void deviceSetProperty(unsigned short id, unsigned short value)
 {
-  /*
-    SET_PROPERTY sets the value of a property. The command is complete when the CTS bit (and optional interrupt)
-    is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a single interrupt
-    occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
-  */
-
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(SET_PROPERTY, HEX);
-#endif
-
   unsigned char cmd[1];
   unsigned char arg[5];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
@@ -935,51 +782,38 @@ bool deviceSetProperty(unsigned short devicePropertyId, unsigned short devicePro
   cmd[0] = SET_PROPERTY;
 
   arg[0] = 0x00;
-  arg[1] = devicePropertyId & 0xff;
-  arg[2] = devicePropertyId >> 8;
-  arg[3] = devicePropertyValue & 0xff;
-  arg[4] = devicePropertyValue >> 8;
+  arg[1] = id & 0xff;
+  arg[2] = id >> 8;
+  arg[3] = value & 0xff;
+  arg[4] = value >> 8;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
+  tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
+  tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd);
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
-
-  return true;
+  deviceReady(buf, sizeof(buf), DURATION_REPLY);
 }
 
-/*0x14 GET_PROPERTY Retrieve the value of a property*/
-bool deviceGetProperty(unsigned short devicePropertyId, unsigned short &devicePropertyValue, unsigned char count)
+unsigned short deviceGetProperty(unsigned short id)
 {
-  /*
-    GET_PROPERTY retrieves the value of a property or properties. The host may read as many properties as desired
-    up to the end of a given property group. An attempt to read passed the end of the property group will result in zeros
-    being read. The command is complete when the CTS bit (and optional interrupt) is set. The ERR bit (and optional
-    interrupt) is set if an invalid argument is sent. Note that only a single interrupt occurs if both the CTS and ERR bits
-    are set. The command may only be sent in powerup mode.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(GET_PROPERTY, HEX);
-#endif
-
   unsigned char cmd[1];
   unsigned char arg[3];
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  unsigned short propertyValue = 0xffff;
 
   cmd[0] = GET_PROPERTY;
 
-  arg[0] = count & 0xFF;
-  arg[1] = devicePropertyId & 0xff;
-  arg[2] = devicePropertyId >> 8 & 0xff;
+  arg[0] = 1;//count = 1
+  arg[1] = id & 0xff;
+  arg[2] = id >> 8 & 0xff;
 
-  if (!tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart)) return false;
-  if (!tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd)) return false;
+  tuner.writeSpi(cmd, sizeof(cmd), ComDriverSpi::transferStart);
+  tuner.writeSpi(arg, sizeof(arg), ComDriverSpi::transferEnd);
 
-  if (!deviceReady(buf, sizeof(buf))) return false;
+  deviceReady(buf, sizeof(buf), DURATION_REPLY);
 
-  devicePropertyValue = (int)buf[5] << 8 | buf[4];
+  propertyValue = (unsigned short)buf[5] << 8 | buf[4];
 
-  return true;
+  return propertyValue;
 }
 
 /*0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset*/
@@ -1052,21 +886,9 @@ bool deviceReadStorage(unsigned short offset, unsigned char data[], unsigned cha
   return true;
 }
 
-/*0xE5 TEST_GET_RSSI returns the reported RSSI in 8.8 format*/
 unsigned short deviceGetRssi()
 {
-  /*
-    TEST_GET_RSSI returns the reported RSSI in 8.8 format. This command is used to help calibrate the frontend
-    tracking circuit. It returns the RSSI value in dBuV to 1/256 of a dB. The command is complete when the CTS bit
-    (and optional interrupt) is set. The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that
-    only a single interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup
-    mode. Note: TEST_GET_RSSI command is not supported in firmware revision A0A or A0B.
-  */
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(TEST_GET_RSSI, HEX);
-#endif
   unsigned short deviceRssi = 0;
-
   unsigned char cmd[1];
   unsigned char arg[1];
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1084,35 +906,22 @@ unsigned short deviceGetRssi()
   return deviceRssi;
 }
 
-/*Get all device property values*/
-bool deviceGetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num)
+//Get all device property values
+void deviceGetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num)
 {
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(F("deviceGetAllProperties()"));
-#endif
-
   for (unsigned char i = 0; i < num; i++)
   {
-    deviceGetProperty(devicePropertyValueList[i].devicePropertyId, devicePropertyValueList[i].devicePropertyValue);
+    devicePropertyValueList[i].devicePropertyValue = deviceGetProperty(devicePropertyValueList[i].devicePropertyId);
   }
-
-  return true;
 }
 
-
-/*Set all device properties*/
-bool deviceSetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num)
+//Set all device properties
+void deviceSetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num)
 {
-#ifdef DEBUG_FUNCTION_NAMES_DEVICE
-  Serial.println(F("deviceSetAllProperties()"));
-#endif
-
   for (unsigned char i = 0; i < num; i++)
   {
     deviceSetProperty(devicePropertyValueList[i].devicePropertyId, devicePropertyValueList[i].devicePropertyValue);
   }
-
-  return true;
 }
 
 /*Start DAB*/
@@ -2369,7 +2178,7 @@ bool dabVolumeMute(bool mute) {
   return true;
 }
 
-/*Get all property values*/
+//Get all property values
 bool dabGetAllProperties(struct dabPropertyValueList_t dabPropertyValueList[], unsigned char num)
 {
 #ifdef DEBUG_FUNCTION_NAMES_DAB
@@ -2378,7 +2187,7 @@ bool dabGetAllProperties(struct dabPropertyValueList_t dabPropertyValueList[], u
 
   for (unsigned char i = 0; i < num; i++)
   {
-    deviceGetProperty(dabPropertyValueList[i].dabPropertyId, dabPropertyValueList[i].dabPropertyValue);
+    dabPropertyValueList[i].dabPropertyValue = deviceGetProperty(dabPropertyValueList[i].dabPropertyId);
   }
 
   return true;

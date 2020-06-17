@@ -717,28 +717,22 @@ bool dabMenuDeviceSerial(char ch)
   //Print Device Part Number
   else if (ch == 'n')
   {
-    //Get Device Part Number
-    deviceGetPartNumber(devicePartNumber);
     //Print Device Part Number
-    serial::devicePrintPartNumber(devicePartNumber);
+    serial::devicePrintPartNumber(deviceGetPartNumber());
   }
 
   //Print Device Mode
   else if (ch == 'm')
   {
-    //Get Device Image
-    deviceGetImage(deviceImage);
     //Print Device Image
-    serial::devicePrintImage(deviceImage);
+    serial::devicePrintImage(deviceGetImage());
   }
 
   //Print Firmware Information
   else if (ch == 'f')
   {
-    //Get Firmware Information
-    deviceGetFirmwareInformation(deviceFirmwareInformation);
     //Print Firmware Information
-    serial::devicePrintFirmwareInformation(deviceFirmwareInformation);
+    serial::devicePrintFirmwareInformation(deviceGetFirmwareInformation());
   }
 
   else if (ch == 'a')

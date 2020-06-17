@@ -3,13 +3,12 @@
 #define SI468X_H
 
 /*
-  Tuner Shield DAB+
-  by IGB
-
-  Tuner circuit SI468x
+  Driver for tuner circuit SI468x  by IGB
+  
   SPI MOSI:   Pin 11
   SPI MISO:   Pin 12
   SPI SCK:    Pin 13
+  
   SPI SS:     Pin 8
   Interrupt:  Pin 6
   Reset:      Pin 3
@@ -17,8 +16,8 @@
   Flash memory circuit SST26W onboard
   SPI SS:     Pin 2
 
-  Flash:  31252 Bytes (96%)
-  RAM:    1019 Bytes (49%)
+  Flash:  30512 Bytes (94%)
+  RAM:    995 Bytes (48%)
 */
 
 /*Version*/
@@ -47,10 +46,10 @@ enum DURATIONS
   //delay does not work in ctor, delayMicroseconds() work in CTOR
   //max delayMicroseconds(16383) = delayMicroseconds(0x3FFF)
 
-  DURATION_5000_MIKROS  = 5000,//3ms see flowchart; 5ms tRSTB_HI see timing
-  DURATION_3000_MIKROS  = 3000,//20us see flowchart; 3ms tPOWER_UP see timing
-  TIME_REPLY            = 3000,//?ms see flowchart; 1 ms see timing CTS polls @ 1 ms; tested 2500us
-  TIME_LOAD_INIT        = 4000,//4ms see flowchart; ?ms see timing
+  DURATION_RESET        = 5000,//3ms see flowchart; 5ms tRSTB_HI see timing
+  DURATION_POWER_UP     = 3000,//20us see flowchart; 3ms tPOWER_UP see timing
+  DURATION_REPLY        = 3000,//?ms see flowchart; 1 ms see timing CTS polls @ 1 ms; tested 2500us
+  DURATION_LOAD_INIT    = 4000,//4ms see flowchart; ?ms see timing
   TIME_BOOT             = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
 
   //DAB specific delay times
@@ -60,12 +59,8 @@ enum DURATIONS
 };
 
 
-/*Global variables of device*/
-/*Image*/
-extern unsigned char deviceImage;
-
-/*Firmware Information*/
-extern struct deviceFirmwareInformation_t
+//Datatypes of device
+struct deviceFirmwareInformation_t
 {
   unsigned char revisionNumberMajor:  8;//REVEXT[7:0] Major revision number (first part of 1.2.3).
   unsigned char revisionNumberMinor:  8;//[7:0] Minor revision number (second part of 1.2.3).
@@ -78,22 +73,10 @@ extern struct deviceFirmwareInformation_t
   unsigned char mixedRevFlag:         1;//MIXEDREV If set, the image was built with mixed revisions.
   unsigned char localModFlag:         1;//LOCALMOD If set, the image has local modifications.
   unsigned long svnId:               32;//SVNID[31:0] SVN ID from which the image was built.
-} deviceFirmwareInformation;
+};
 
-/*Property id*/
-extern unsigned short devicePropertyId;
-
-/*Property value*/
-extern long devicePropertyValue;
-
-/*Receive signal strength indicator*/
-extern unsigned short deviceRssi;
-
-/*Tuning capacitor value*/
-extern unsigned short varCap;
-
-/*Device status information*/
-extern struct deviceStatusInformation_t
+//Device status information
+struct deviceStatusInformation_t
 {
   unsigned char cts:        1;  //Clear to Send
 
@@ -111,26 +94,27 @@ extern struct deviceStatusInformation_t
   unsigned char nonRecErr:  1;  //Non recoverable error
 
   unsigned char cmdErrCode: 8;  //command error code
-} deviceStatusInformation;
+};
 
-/*Device part number*/
-extern struct devicePartNumber_t
+//Device part number
+struct devicePartNumber_t
 {
   unsigned char chipRev;
   unsigned char romId;
   unsigned short partNumber;
-} devicePartNumber;
+};
 
-/*Device power up arguments*/
-extern struct devicePowerUpArguments_t
+//Device power up arguments
+struct devicePowerUpArguments_t
 {
-  unsigned char clockMode:  2;//Range 0-3
-  unsigned char trSize:     4;//Range 0-15
-  unsigned char iBiasStart: 7;//Range 0-127
+  unsigned char cts:        1;//0-1
+  unsigned char clockMode:  2;//0-3
+  unsigned char trSize:     4;//0-15
+  unsigned char iBiasStart: 7;//0-127
   unsigned long xtalFreq:   32;//5,4 - 46,2 MHz
-  unsigned char cTune:      6;//Range 0-63
-  unsigned char iBiasRun:   7;//Range 0-127, 10 uA steps, 10 to 1270 uA. If set to 0, will use the same value as iBiasStart
-} devicePowerUpArguments;
+  unsigned char cTune:      6;//0-63
+  unsigned char iBiasRun:   7;// 0-127, 10 uA steps, 10 to 1270 uA. If set to 0, will use the same value as iBiasStart
+};
 
 /*Number of device properties*/
 const unsigned char numberDeviceProperties = 19;
@@ -143,43 +127,39 @@ extern struct devicePropertyValueList_t
 } devicePropertyValueList[numberDeviceProperties];
 
 
-
 /*0x00 RD_REPLY Get Device Status Information*/
 deviceStatusInformation_t deviceGetStatus();
-/*Sets the power up arguments*/
-bool deviceSetPowerUpArguments(devicePowerUpArguments_t &devicePowerUpArguments);
-/*0x01 POWER_UP Power-up the device and set system settings*/
-void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments, unsigned char ctsInterruptEnabled = 1);
+//0x01 POWER_UP Power-up the device and set system settings
+void devicePowerUp(devicePowerUpArguments_t devicePowerUpArguments);
 //0x04 HOST_LOAD Loads an image from HOST over command interface
 void deviceHostLoad(unsigned char package[], unsigned short len);
 //0x05 FLASH_LOAD Loads an image from external FLASH over secondary SPI bus
 void deviceFlashLoad(unsigned long address, unsigned char subCommand = 0);
-/*0x06 LOAD_INIT Prepares the bootloader to receive a new image*/
+//0x06 LOAD_INIT Prepares the bootloader to receive a new image
 void deviceLoadInit();
 //0x07 BOOT Boots the image currently loaded in RAM
 void deviceBoot();
-/*0x08 GET_PART_INFO Get Device Part Number*/
-bool deviceGetPartNumber(devicePartNumber_t &devicePartNumber);
-/*0x09 GET_SYS_STATE Get Device Image*/
-bool deviceGetImage(unsigned char &deviceImage);
+//0x08 GET_PART_INFO Get Device Part Number
+devicePartNumber_t deviceGetPartNumber();
+//0x09 GET_SYS_STATE Get Device Image
+unsigned char deviceGetImage();
 /*0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP*/
 devicePowerUpArguments_t deviceGetPowerUpArguments();
 /*0x10 READ_OFFSET Reads a portion of response buffer from an offset*/
 bool deviceReadOffset(unsigned short offset, unsigned char data[]);
-/*0x12 GET_FUNC_INFO Get Firmware Information*/
-bool deviceGetFirmwareInformation(deviceFirmwareInformation_t &deviceFirmwareInfo);
-/*0x13 SET_PROPERTY Sets the value of a property*/
-bool deviceSetProperty(unsigned short devicePropertyId, unsigned short devicePropertyValue);
-/*0x14 GET_PROPERTY Retrieve the value of a property*/
-bool deviceGetProperty(unsigned short devicePropertyId, unsigned short &devicePropertyValue, unsigned char count = 1);
+//0x12 GET_FUNC_INFO Get Firmware Information*/
+deviceFirmwareInformation_t deviceGetFirmwareInformation();
+//0x13 SET_PROPERTY Sets the value of a property
+void deviceSetProperty(unsigned short id, unsigned short value);
+//0x14 GET_PROPERTY Retrieve the value of a property
+unsigned short deviceGetProperty(unsigned short id);
+
 /*0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset*/
 bool deviceWriteStorage(unsigned short offset, unsigned char data[], unsigned char len);
 /*0x16 READ_STORAGE Reads data from the on board storage area from a specified offset*/
 bool deviceReadStorage(unsigned short offset, unsigned char data[], unsigned char len);
-/*0xE5 TEST_GET_RSSI returns the reported RSSI in 8.8 format*/
+//0xE5 TEST_GET_RSSI returns the reported RSSI in 8.8 format
 unsigned short deviceGetRssi();
-/*0xE800 TEST_GET_BER_INFO Reads the current BER rate*/
-bool deviceGetBitErrorRate(unsigned short &deviceBitErrorRate);
 
 //Helper functions device
 void deviceInitalize();
@@ -188,10 +168,10 @@ void deviceReset(unsigned char resetPin = PIN_DEVICE_RESET);
 bool deviceReady(unsigned char buf[], unsigned short len, unsigned short tDelay = 0, bool printBuffer = false);
 /*Check if device has seek tune completed*/
 bool deviceSeekTuneComplete(unsigned char buf[], unsigned short len, unsigned short tDelay = DURATION_200_MILLIS, bool printBuffer = false);
-/*Get all device property values*/
-bool deviceGetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num = numberDeviceProperties);
-/*Set all device properties*/
-bool deviceSetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num = numberDeviceProperties);
+//Get all device property values
+void deviceGetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num = numberDeviceProperties);
+//Set all device properties
+void deviceSetAllProperties(struct devicePropertyValueList_t devicePropertyValueList[], unsigned char num = numberDeviceProperties);
 /*Get average rssi*/
 unsigned short deviceGetAverageRssi(unsigned char numberMeasurements = 10);
 
@@ -201,9 +181,6 @@ bool hostLoadDataTuner(unsigned long startAddress, unsigned long fileSize);
 
 //Run setup functions before firmware
 bool deviceLoadFirmware();
-
-//Sets the power up arguments
-bool deviceSetPowerUpArguments(devicePowerUpArguments_t &devicePowerUpArguments);
 
 //Print Hex answer of device
 bool printHexStr(unsigned char str[], unsigned long len);
