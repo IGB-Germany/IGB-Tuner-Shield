@@ -35,14 +35,10 @@ void setup()
   Serial.begin(9600);
   while (!Serial); // Wait until Serial is ready
 
-  /*Initalize device*/
-  deviceInitalize();
-
-  /*Run all setup functions*/
-  deviceLoadFirmware();
-
-  /*Start DAB*/
-  dabStart();
+  //Run all setup functions
+  deviceBegin();
+  //Start DAB
+  dabBegin();
 }
 
 void loop()

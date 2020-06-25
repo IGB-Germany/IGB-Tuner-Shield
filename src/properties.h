@@ -1,7 +1,7 @@
 #ifndef PROPERTIES_H
 #define PROPERTIES_H
 
-//properties of device, DAB, FM, AM
+//properties of menuDevice, DAB, FM, AM
 
 enum PROPERTIES_DEVICE
 {
@@ -33,7 +33,7 @@ enum PROPERTIES_DEVICE
   //0x0300 AUDIO_ANALOG_VOLUME Sets the audio analog volume; Default 63
   AUDIO_ANALOG_VOLUME = 0x0300,
   //0x0301 AUDIO_MUTE property mutes/unmutes each audio output independently 0,1,2,3; No, L, R, Both; Default 0x0000
-  AUDIO_MUTE = 0x030,
+  AUDIO_MUTE          = 0x0301,
   //0x0302 AUDIO_OUTPUT_CONFIG is used to configure various settings of the audio output 0,1; Stereo, Mono; Default 0x0000
   AUDIO_OUTPUT_CONFIG = 0x0302,
 
