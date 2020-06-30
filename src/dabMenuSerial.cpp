@@ -38,14 +38,14 @@ void callSerialMonitorApplication()
   {
     serialPrintSi468x::dabPrintEnsembleInformation(readEnsembleInformation());
   }
-  
+
   //Service info
   else if (ch == 'r')
   {
     //Digital service information
     serialPrintSi468x::dabPrintDigitalServiceInformation(readServiceInformation(serviceId));
   }
-  
+
   //Free Ram
   else if (ch == 'f')
   {
@@ -53,7 +53,7 @@ void callSerialMonitorApplication()
     Serial.println(getFreeRam());
     Serial.println();
   }
-  
+
   //Mute and Unmute
   else if (ch == 'm')
   {
@@ -63,7 +63,7 @@ void callSerialMonitorApplication()
       writeMute(3);
     serialPrintSi468x::printMute(readMute());
   }
-  
+
   //Volume up
   else if (ch == '+')
   {
@@ -75,7 +75,7 @@ void callSerialMonitorApplication()
   {
     serialPrintSi468x::printVolume(volumeDown());
   }
-  
+
   //change state
   else if (ch == 'M') myState = main;
   else if (ch == 'E')  myState = scanEnsemble;
@@ -83,7 +83,7 @@ void callSerialMonitorApplication()
   else if (ch == 'T') myState = technical;
   else if (ch == 'D')  myState = device;
   else {};//nothing
-  
+
 
   switch (myState)
   {
@@ -126,35 +126,43 @@ void menuMain(char ch)
   else if (ch == 'c')
   {
     //Prints service data
-    serialPrintSi468x::dabPrintServiceData(dabGetServiceData());
+    serialPrintSi468x::dabPrintServiceData(readServiceData());
   }
-  
+
   //Get DAB service data
   else if (ch == 'v')
   {
     //Prints service data
-    serialPrintSi468x::dabPrintServiceData(dabGetServiceData(0, 1));
+    serialPrintSi468x::dabPrintServiceData(readServiceData(0, 1));
   }
-  
+
   //next service
   else if (ch == 'd')
   {
     nextService(serviceId, componentId);
+    serviceInformation_t serviceInformation = readServiceInformation(serviceId);
+    Serial.println(serviceInformation.serviceLabel);
   }
 
   //previous service
   else if (ch == 'a')
   {
     previousService(serviceId, componentId);
+    serviceInformation_t serviceInformation = readServiceInformation(serviceId);
+    Serial.println(serviceInformation.serviceLabel);
   }
 
   //Start dedicated service in ensemble
   else if (ch == '1')
   {
+    //CHAN_5C=178352
+    //DR Deutschland
+    dabIndex = 2;
+
     //sunshine live
-    dabIndex = 2; //CHAN_5C=178352;//DR Deutschland
     serviceId = 0x15DC;
     componentId = 0x15;
+
     //Tunes DAB index
     tuneIndex(dabIndex);
     //Starts an audio or data service
@@ -164,14 +172,14 @@ void menuMain(char ch)
   //Start dedicated service in ensemble
   else if (ch == '2')
   {
-    dabIndex = 2; //CHAN_5C=178352;//DR Deutschland
-    //Energy 0x1A45, ??
+    //CHAN_5C=178352
+    //DR Deutschland
+    dabIndex = 2;
+
     //Radio Bob 0x15DD, 0x16
     serviceId = 0x15DD;
     componentId = 0x16;
-    //Absolut relax
-    //serviceId = 0x17FA;
-    //componentId = 0x03;
+
     //Tunes DAB index
     tuneIndex(dabIndex);
     //Starts an audio or data service
@@ -195,11 +203,12 @@ void menuMain(char ch)
   //Start dedicated service in ensemble
   else if (ch == '4')
   {
-    //CHAN_11D = 220352;//DR Hessen
-    dabIndex = 28;
-    //Radio TEDDY
-    serviceId = 0x1B2E;
-    componentId = 0xD;
+    //227360 kHz
+    dabIndex = 33;
+    //Joke FM
+    serviceId = 0x1464;
+    componentId = 0x18;
+
     //Tunes DAB index
     tuneIndex(dabIndex);
     //Starts an audio or data service
@@ -209,11 +218,12 @@ void menuMain(char ch)
   //Start dedicated service in ensemble
   else if (ch == '5')
   {
-    //CHAN_11D = 220352;//DR Hessen
-    dabIndex = 28;
-    //FFH
-    serviceId = 0xD368;
-    componentId = 0xF;
+    //190640 kHz
+    dabIndex = 9;
+    //hr-iNFO
+    serviceId = 0xD367;
+    componentId = 0x4;
+
     //Tunes DAB index
     tuneIndex(dabIndex);
     //Starts an audio or data service
@@ -320,7 +330,7 @@ void menuTechnical(char ch)
     //Hide menu
     displayMenu = false;
   }
-  
+
   //Gets event information about the various events related to the DAB radio
   else if (ch == 'v')
   {
@@ -337,27 +347,30 @@ void menuTechnical(char ch)
   else if (ch == 'x')
   {
     //Print technical information about the component
-    serialPrintSi468x::dabPrintComponentTechnicalInformation(dabGetComponentTechnicalInformation(serviceId, componentId));
+    serialPrintSi468x::dabPrintComponentTechnicalInformation(readComponentTechnicalInformation(serviceId, componentId));
   }
 
   //Get and print date and time
   else if (ch == 'd')
   {
     //Print local date and time or UTC
-    serialPrintSi468x::dabPrintDateTimeInformation(dabGetDateTimeInformation());
+    serialPrintSi468x::dabPrintDateTimeInformation(readDateTime());
   }
 
   //Get information about the component
   else if (ch == 'c')
   {
+
+    componentInformation_t componentInformation;
+    readComponentInformation(componentInformation, serviceId, componentId);
     //Print information about the component
-    serialPrintSi468x::dabPrintComponentInformation(dabGetComponentInformation(serviceId, componentId));
+    serialPrintSi468x::dabPrintComponentInformation(componentInformation);
   }
 
   //Print DAB frequency information list
-  else if (ch == 'f')
+  else if (ch == 'i')
   {
-    dabGetEnsembleFrequencyInformationList();
+    readFrequencyInformationList();
   }
 
   //Test varactor tuning capacitor
@@ -458,25 +471,29 @@ void menuScanFrequency(char ch)
   //Tune index Up
   else if (ch == 'u')
   {
-    Serial.println(tune(true));
+    tune(dabIndex, true);
+    Serial.println(dabIndex);
   }
 
   //Tune index down
   else if (ch == 'z')
   {
-    Serial.println(tune(false));
+    tune(dabIndex, false);
+    Serial.println(dabIndex);
   }
 
   //Scan Index Up
   else if (ch == 'd')
   {
-    Serial.println(scan(true));
+    scan(dabIndex, true);
+    Serial.println(dabIndex);
   }
 
   //Scan Index Down
   else if (ch == 'a')
   {
-    Serial.println(scan(false));
+    scan(dabIndex, false);
+    Serial.println(dabIndex);
   }
 
   //Bandscan
@@ -485,7 +502,6 @@ void menuScanFrequency(char ch)
     //Bandscan
     if (dabBandScan(dabNumValidIndex, dabValidIndexList))
     {
-
       //if at least one valid frequency found
       //Print valid index list
       serialPrintSi468x::dabPrintValidIndexList(dabNumValidIndex, dabValidIndexList);
@@ -570,8 +586,9 @@ void menuDevice(char ch)
 
   else if (ch == 'a')
   {
+    readPowerUpArguments(powerUpArguments);
     //Print Parameters Used During Power Up
-    serialPrintSi468x::printPowerUpArguments(readPowerUpArguments());
+    serialPrintSi468x::printPowerUpArguments(powerUpArguments);
   }
 
   else if (ch == 'p')

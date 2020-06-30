@@ -323,7 +323,7 @@ void dabPrintComponentAudioInfo(audioInformation_t audioInformation)
 }
 
 /*Print local date and time or UTC*/
-void dabPrintDateTimeInformation(dabTime_t dabTime)
+void dabPrintDateTimeInformation(timeDab_t dabTime)
 {
   const unsigned char len = 28;
   char string[len];
@@ -342,56 +342,59 @@ void dabPrintDateTimeInformation(dabTime_t dabTime)
   Serial.println();
 }
 
-/*Print component technical information*/
-void dabPrintComponentTechnicalInformation(dabComponentTechnicalInformation_t dabComponentTechnicalInformation)
+//Print component technical information
+void dabPrintComponentTechnicalInformation(componentTechnicalInformation_t componentTechnicalInformation)
 {
   Serial.println(F("Component Technical Info"));
   Serial.print(F("Service Mode (0-8):\t"));
-  Serial.print(dabComponentTechnicalInformation.serviceMode);
+  Serial.print(componentTechnicalInformation.serviceMode);
   //Serial.println(F("0:AUDIO, 1:DATA, 2:FIDC, 3:MSC, 4:DAB+, 5:DAB, 6:FIC, 7:XPAD, 8:NO MEDIA"));
-  if (dabComponentTechnicalInformation.serviceMode == 4)
-    Serial.println(F(" DAB+"));
-  else if (dabComponentTechnicalInformation.serviceMode == 1)
-    Serial.println(F(" Data"));
+  if (componentTechnicalInformation.serviceMode == 0)
+    Serial.println(F("\tAudio"));
+  else if (componentTechnicalInformation.serviceMode == 1)
+    Serial.println(F("\tData"));
+  else if (componentTechnicalInformation.serviceMode == 4)
+    Serial.println(F("\tDAB+"));
   else Serial.println();
+
   Serial.print(F("UEP/EEP Protection:\t"));
-  Serial.println(dabComponentTechnicalInformation.protectionInfo);
+  Serial.println(componentTechnicalInformation.protectionInfo);
   Serial.print(F("Bit Rate:\t\t"));
-  Serial.print(dabComponentTechnicalInformation.bitRate);
+  Serial.print(componentTechnicalInformation.bitRate);
   Serial.println(F(" kbps"));
   Serial.print(F("Capacity Units:\t\t"));
-  Serial.println(dabComponentTechnicalInformation.numberCU);
+  Serial.println(componentTechnicalInformation.numberCU);
   Serial.print(F("C.U. Start Adress:\t"));
-  Serial.println(dabComponentTechnicalInformation.addressCU );
+  Serial.println(componentTechnicalInformation.addressCU );
   Serial.println();
 }
 
 /*Print information about the component*/
-void dabPrintComponentInformation(dabComponentInformation_t dabComponentInformation)
+void dabPrintComponentInformation(componentInformation_t componentInformation)
 {
   Serial.println(F("Component Information"));
   Serial.print(F("Global Id:\t"));
-  Serial.println(dabComponentInformation.globalId);
+  Serial.println(componentInformation.globalId);
   Serial.print(F("Language:\t"));
-  Serial.println(dabComponentInformation.language);
+  Serial.println(componentInformation.language);
   Serial.print(F("Character Set:\t"));
-  Serial.println(dabComponentInformation.characterSet);
+  Serial.println(componentInformation.characterSet);
   Serial.print(F("Label:\t"));
-  Serial.println(dabComponentInformation.label);
+  Serial.println(componentInformation.label);
   Serial.print(F("Abbrev. Mask:\t"));
-  Serial.println(dabComponentInformation.abbreviationMask, BIN);
+  Serial.println(componentInformation.abbreviationMask, BIN);
   Serial.print(F("Number of Apps:\t"));
-  Serial.println(dabComponentInformation.numberUserAppTypes);
+  Serial.println(componentInformation.numberUserAppTypes);
   Serial.print(F("User App. Type:\t"));
-  Serial.println(dabComponentInformation.userAppType);
-  Serial.print(F("Data Length:\t"));
-  Serial.println(dabComponentInformation.lenUserApp);
+  Serial.println(componentInformation.userAppType);
+  Serial.print(F("Total Length:\t"));
+  Serial.println(componentInformation.lenTotal);
   Serial.print(F("Field Length:\t"));
-  Serial.println(dabComponentInformation.lenUserAppData);
+  Serial.println(componentInformation.lenField);
   Serial.println();
 }
 
-/*Print Service ID and Component ID*/
+//Print Service ID and Component ID
 void dabPrintIds(unsigned long serviceId, unsigned long componentId)
 {
   Serial.print(F("Service Id: 0x"));
@@ -405,7 +408,7 @@ void dabPrintFrequency(unsigned long frequency)
 {
   Serial.print(F("Frequency:\t"));
   Serial.print(frequency);
-  Serial.println(F(" kHz\n"));
+  Serial.print(F(" kHz\n"));
 }
 
 //Print frequency table
@@ -517,7 +520,7 @@ void dabPrintEnsemble(ensembleHeader_t ensembleHeader)
 }
 
 /*Print Service Data*/
-void dabPrintServiceData(struct dabServiceData_t dabServiceData)
+void dabPrintServiceData(serviceData_t dabServiceData)
 {
   Serial.println(F("Service Data"));
   Serial.print(F("Error: "));
@@ -616,7 +619,7 @@ void dabPrintMenuTechnical()
   Serial.println(F("x: Technical Info"));
   Serial.println(F("d: Date and Time"));
   Serial.println(F("c: Component Info"));
-  Serial.println(F("f: Frequency List"));
+  Serial.println(F("i: Frequency List"));
   Serial.println(F("t: Test Varactor"));
   Serial.println(F("r: RSSI"));
   Serial.println(F("p: Properties DAB"));

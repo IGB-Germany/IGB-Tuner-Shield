@@ -63,7 +63,7 @@ bool processActionTactileSwitch(TactileSwitch &myButton)
         //Serial.println(F("Button hold long"));
         
         //Scan frequencies auto up
-        scan(true);
+        scan(dabIndex, true);
 
         startFirstService(serviceId, componentId);
         

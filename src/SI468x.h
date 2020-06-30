@@ -16,8 +16,8 @@
   Flash memory circuit SST26W onboard
   SPI SS:     Pin 2
 
-  Flash:  30820 Bytes (95%)
-  RAM:    853 Bytes (41%)
+  Flash:  30786 Bytes (95%)
+  RAM:    850 Bytes (41%)
 */
 
 /*
@@ -33,13 +33,13 @@
   loadFirmware works only with 0x100 because of flash (pagewise)- open
   readStorage() handle first 4 bytes of answer - open
   readServiceInformation() delay tbd - open
-  dabGetEnsembleFrequencyInformationList()- open
+  readFrequencyInformationList()- open
   delay tbd - open
   use onboard flash/firmware location for different data like favorites, properties, program type - open
 */
 
 
-//Version
+
 const char version[8] = "0.08.04";
 
 enum SPI_FREQUENCY {SPI_FREQUENCY = 8000000UL};
@@ -132,6 +132,8 @@ struct powerUpArguments_t
   unsigned char iBiasRun:   7;// 0-127, 10 uA steps, 10 to 1270 uA. If set to 0, will use the same value as iBiasStart
 };
 
+extern powerUpArguments_t powerUpArguments;
+
 //properties
 //Number of device properties
 enum NUM_PROPERTIES_DEVICE {NUM_PROPERTIES_DEVICE = 17};
@@ -164,8 +166,8 @@ partInfo_t readPartInfo();
 //0x09 GET_SYS_STATE reports basic system state information such as which mode is active; FM, DAB, etc.
 unsigned char readSystemState();
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
-powerUpArguments_t readPowerUpArguments();
-//0x10 READ_OFFSET Reads a portion of response buffer from an offset
+void readPowerUpArguments(powerUpArguments_t &powerUpArguments);
+//0x10 READ_OFFSET Reads a portion of the response buffer (not the status)from an offset
 statusRegister_t readReplyOffset(unsigned char reply[], unsigned short len, unsigned short offset);
 //0x12 GET_FUNC_INFO Get Firmware Information
 firmwareInformation_t readFirmwareInformation();
@@ -185,6 +187,10 @@ unsigned short readRssi();
 
 //Write command and argument
 void writeCommandArgument(unsigned char cmd[], unsigned long lenCmd, unsigned char arg[] = nullptr, unsigned long lenArg = 0);
+//Write command
+void writeCommand(unsigned char cmd[], unsigned long lenCmd);
+
+
 //Run setup functions before firmware
 void deviceBegin();
 //Read status register
@@ -281,7 +287,7 @@ struct ensembleHeader_t
 };
 
 //Time 8 Byte
-struct dabTime_t
+struct timeDab_t
 {
   unsigned short  year;
   unsigned char   month;
@@ -336,18 +342,21 @@ struct serviceInformation_t
   unsigned short abbreviationMask;        //The component label abbreviation mask.
 };
 
-struct dabComponentInformation_t
+struct componentInformation_t
 {
   unsigned char globalId:           8;//The global reference for the component
+  //unsigned char alignPad1:          8;//
   unsigned char language:           6;//The language of the component
   unsigned char characterSet:       6;//The character set for the component label
   char label[17];                   //The component label
   unsigned short abbreviationMask:  16;//The component label abbreviation mask.
-  unsigned char numberUserAppTypes: 8;//NUMUA[7:0] The number of user application types.
-  unsigned char lenUserApp:         8;//LENUA[7:0] The total length (in byte) of the UATYPE, UADATALEN and UADATA fields, including the padding bytes which is described in UADATAN field.
-  unsigned short userAppType:       16;//UATYPE[15:0] The user application type. If multiple UA Types exist, all UATTYPE fields will be aligned on a 16-bit (2 byte) boundary.
-  unsigned char lenUserAppData:     8;//The user application data field length, excluding the padding byte which is described in UADATAN field.
+  unsigned char numberUserAppTypes: 8;//NUMUA[7:0] The number of user application types. 1- 6
+  //unsigned char alignPad2:          8;//
+  unsigned char lenTotal:           8;//LENUA[7:0] The total length (in byte) of the UATYPE, UADATALEN and UADATA fields, including the padding bytes which is described in UADATAN field.
+  unsigned short userAppType:       16;//UATYPE[15:0] The user application type. TS 101 756 [16], table 16. If multiple UA Types exist, all UATTYPE fields will be aligned on a 16-bit (2 byte) boundary.
+  unsigned char lenField:           8;//The user application data field length, in the range 0 to 23, excluding the padding byte which is described in UADATAN field.
   char* userAppData;                //UADATA0[7:0] The first user application data byte.
+  //unsigned char alignPad3:          8;//
 };
 
 struct eventInformation_t
@@ -393,7 +402,7 @@ struct rsqInformation_t
   unsigned char fastDect:           8;//Returns the statistical metric for DAB fast detect. The metric is a confidence level that dab signal is detected. The threshold for dab detected is greater than 4.
 };
 
-struct dabComponentTechnicalInformation_t
+struct componentTechnicalInformation_t
 {
   unsigned char serviceMode:        8;//Indicates the service mode of the sub-channel
   unsigned char protectionInfo:     8;//Indicates the protection profile of the sub-channel
@@ -402,7 +411,7 @@ struct dabComponentTechnicalInformation_t
   unsigned short addressCU:         16;//The CU starting address of this subchannel within the CIF
 };
 
-struct dabServiceData_t
+struct serviceData_t
 {
   unsigned char errorInterrupt:     1;
   unsigned char overflowInterrupt:  1;
@@ -426,6 +435,7 @@ struct dabServiceData_t
   unsigned short dataLength;
   unsigned short segmentNumber;
   unsigned short numberSegments;
+  unsigned char* payload;
 };
 
 
@@ -510,9 +520,9 @@ void startFirstService(unsigned long &serviceId, unsigned long &componentId, uns
 bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTable);
 
 //Scan next valid frequency
-unsigned char scan(bool up = true);
+void scan(unsigned char &dabIndex, bool up = true);
 //Tune up = true/down = false
-unsigned char tune(bool up = true);
+void tune(unsigned char &dabIndex, bool up = true);
 
 //Test varactor tuning capacitor
 unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection = 0, unsigned char numberMeasurments = 10);
@@ -523,7 +533,7 @@ void startService(unsigned long &serviceId, unsigned long &componentId, const un
 //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service
 void stopService(unsigned long &serviceId, unsigned long &componentId, const unsigned char serviceType = 0);
 //0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services*/
-dabServiceData_t dabGetServiceData(unsigned char statusOnly = 1, unsigned char ack = 0);
+serviceData_t readServiceData(unsigned char statusOnly = 1, unsigned char ack = 0);
 //0xB0 Tunes to frequency index
 unsigned char tuneIndex(unsigned char index, unsigned short varCap = 0, unsigned char injection = 0);
 //0xB2 DAB_DIGRAD_STATUS Get status information about the received signal quality
@@ -536,17 +546,17 @@ ensembleInformation_t readEnsembleInformation();
 void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
 
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
-dabComponentInformation_t dabGetComponentInformation(unsigned long &serviceId, unsigned long &componentId);
+void readComponentInformation(componentInformation_t &componentInformation, unsigned long &serviceId, unsigned long &componentId);
 //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset (0) or the UTC (1)
-dabTime_t dabGetDateTimeInformation(unsigned char timeType = 1);
+timeDab_t readDateTime(unsigned char timeType = 1);
 //0xBD DAB_GET_AUDIO_INFO Gets audio information
 audioInformation_t readAudioInformation();
 //0xBE DAB_GET_SUBCHAN_INFO Get technical information about the component
-dabComponentTechnicalInformation_t dabGetComponentTechnicalInformation(unsigned long &serviceId, unsigned long &componentId);
+componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long &serviceId, unsigned long &componentId);
 //0xC0 DAB_GET_SERVICE_INFO Get digital service information
 serviceInformation_t readServiceInformation(unsigned long &serviceId);
 //0xBF DAB_GET_FREQ_INFO Gets ensemble frequency information list
-unsigned long dabGetEnsembleFrequencyInformationList();
+unsigned long readFrequencyInformationList();
 
 //to do
 //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
@@ -586,24 +596,24 @@ enum COMMANDS_DAB
   STOP_DIGITAL_SERVICE              = 0x82,  //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service.
   GET_DIGITAL_SERVICE_DATA          = 0x84,//0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services.
 
-  DAB_TUNE_FREQ                     = 0xB0,//0xB0 DAB_TUNE_FREQ Tunes the DAB Receiver to tune to a frequency between 168.16 and 239.20 MHz defined by the frequency table through DAB_SET_FREQ_LIST.
-  DAB_DIGRAD_STATUS                 = 0xB2,//0xB2 DAB_DIGRAD_STATUS Returns status information about the digital radio and ensemble.
-  DAB_GET_EVENT_STATUS              = 0xB3,  //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio.
-  DAB_GET_ENSEMBLE_INFO             = 0xB4,  //GxB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
-  DAB_GET_ANNOUNCEMENT_SUPPORT_INFO = 0xB5,  //Gets the announcement support information
-  DAB_GET_ANNOUNCEMENT_INFO         = 0xB6,  //gets announcement information from the announcement queue
-  DAB_GET_SERVICE_LINKING_INFO      = 0xB7,  //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID.
-  DAB_SET_FREQ_LIST                 = 0xB8,//0xB8 DAB_SET_FREQ_LIST Sets the DAB frequency table. The frequencies are in units of kHz.
-  DAB_GET_FREQ_LIST                 = 0xB9,  //0xB9 DAB_GET_FREQ_LIST Gets the DAB frequency table
-  DAB_GET_COMPONENT_INFO            = 0xBB,  //0xBB DAB_GET_COMPONENT_INFO Gets information about components within the ensemble if available.
-  DAB_GET_TIME                      = 0xBC,  //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset or the UTC.
-  DAB_GET_AUDIO_INFO                = 0xBD,  //0xBD DAB_GET_AUDIO_INFO Gets audio service info
-  DAB_GET_SUBCHAN_INFO              = 0xBE,  //0xBE DAB_GET_SUBCHAN_INFO Gets sub-channel info
-  DAB_GET_FREQ_INFO                 = 0xBF,  //0xBF DAB_GET_FREQ_INFO Gets ensemble freq info
+  DAB_TUNE_FREQ                     = 0xB0, //0xB0 DAB_TUNE_FREQ Tunes the DAB Receiver to tune to a frequency between 168.16 and 239.20 MHz defined by the frequency table through DAB_SET_FREQ_LIST.
+  DAB_DIGRAD_STATUS                 = 0xB2, //0xB2 DAB_DIGRAD_STATUS Returns status information about the digital radio and ensemble.
+  DAB_GET_EVENT_STATUS              = 0xB3, //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio.
+  DAB_GET_ENSEMBLE_INFO             = 0xB4, //0xB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
+  DAB_GET_ANNOUNCEMENT_SUPPORT_INFO = 0xB5, //0xB5 Gets the announcement support information
+  DAB_GET_ANNOUNCEMENT_INFO         = 0xB6, //0xB6 gets announcement information from the announcement queue
+  DAB_GET_SERVICE_LINKING_INFO      = 0xB7, //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID.
+  DAB_SET_FREQ_LIST                 = 0xB8, //0xB8 DAB_SET_FREQ_LIST Sets the DAB frequency table. The frequencies are in units of kHz.
+  DAB_GET_FREQ_LIST                 = 0xB9, //0xB9 DAB_GET_FREQ_LIST Gets the DAB frequency table
+  DAB_GET_COMPONENT_INFO            = 0xBB, //0xBB DAB_GET_COMPONENT_INFO Gets information about components within the ensemble if available.
+  DAB_GET_TIME                      = 0xBC, //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset or the UTC.
+  DAB_GET_AUDIO_INFO                = 0xBD, //0xBD DAB_GET_AUDIO_INFO Gets audio service info
+  DAB_GET_SUBCHAN_INFO              = 0xBE, //0xBE DAB_GET_SUBCHAN_INFO Gets sub-channel info
+  DAB_GET_FREQ_INFO                 = 0xBF, //0xBF DAB_GET_FREQ_INFO Gets ensemble freq info
 
-  DAB_GET_SERVICE_INFO              = 0xC0,  //0xC0 DAB_GET_SERVICE_INFO Gets information about a service
-  DAB_GET_OE_SERVICES_INFO          = 0xC1,//Provides other ensemble (OE) services (FIG 0/24)information for the passed in service ID
-  DAB_ACF_STATUS                    = 0xC2,//Returns status information about automatically controlled features
+  DAB_GET_SERVICE_INFO              = 0xC0, //0xC0 DAB_GET_SERVICE_INFO Gets information about a service
+  DAB_GET_OE_SERVICES_INFO          = 0xC1, //Provides other ensemble (OE) services (FIG 0/24)information for the passed in service ID
+  DAB_ACF_STATUS                    = 0xC2, //Returns status information about automatically controlled features
 
   DAB_TEST_GET_BER_INFO             = 0xE8//Reads the current BER rate
 };
@@ -696,5 +706,17 @@ const unsigned long frequencyTableItalienTrentino[2] = {CHAN_10A, CHAN_12D};
 
 const unsigned long frequencyTableUnitedKingdom[3] = {CHAN_11A, CHAN_11D, CHAN_12B};
 
+
+//FM
+
+enum COMMANDS_FM
+{
+  FM_TUNE_FREQ      = 0x30,//0x30 FM_TUNE_FREQ Tunes the FM receiver to a frequency in 10 kHz steps.
+  FM_SEEK_START     = 0x31,//0x31 FM_SEEK_START Initiates a seek for a channel that meets the validation criteria for FM.
+  FM_RSQ_STATUS     = 0x32,//0x32 FM_RSQ_STATUS Returns status information about the received signal quality.
+  FM_ACF_STATUS     = 0x33,//0x33 FM_ACF_STATUS Returns status information about automatically controlled features.
+  FM_RDS_STATUS     = 0x34,//0x34 FM_RDS_STATUS Queries the status of RDS decoder and Fifo.
+  FM_RDS_BLOCKCOUNT = 0x35,//0x35 FM_RDS_BLOCKCOUNT Queries the block statistic info of RDS decoder.
+};
 
 #endif //SI468X_DRIVER_H

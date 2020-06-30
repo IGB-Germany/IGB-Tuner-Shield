@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<analyzerinfo checksum="2418536341">
+  <FileInfo check="CheckUnusedFunctions">
+    <functiondecl functionName="freeRam" lineNumber="6"/>
+    <functioncall functionName="__brkval"/>
+    <functioncall functionName="__heap_start"/>
+    <functioncall functionName="int"/>
+    <functioncall functionName="return"/>
+  </FileInfo>
+</analyzerinfo>

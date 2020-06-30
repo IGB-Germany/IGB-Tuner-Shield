@@ -59,11 +59,11 @@ void dabPrintEventInformation(eventInformation_t eventInformation);
 //Print audio component information
 void dabPrintComponentAudioInfo(audioInformation_t audioInformation);
 /*Print local date and time or UTC*/
-void dabPrintDateTimeInformation(dabTime_t dabTime);
+void dabPrintDateTimeInformation(timeDab_t dabTime);
 //Print technical information about the component
-void dabPrintComponentTechnicalInformation(dabComponentTechnicalInformation_t dabComponentTechnicalInformation);
+void dabPrintComponentTechnicalInformation(componentTechnicalInformation_t componentTechnicalInformation);
 //Print information about the component
-void dabPrintComponentInformation(dabComponentInformation_t dabComponentInformation);
+void dabPrintComponentInformation(componentInformation_t componentInformation);
 //Print Service ID and Component ID
 void dabPrintIds(unsigned long serviceId, unsigned long componentId);
 
@@ -78,12 +78,12 @@ void dabPrintIndex(unsigned char index);
 void dabPrintFrequency(unsigned long frequency);
 
 //Print service data
-void dabPrintServiceData(struct dabServiceData_t dabServiceData);
+void dabPrintServiceData(serviceData_t dabServiceData);
 //Print dls
 void dabPrintDynamicLabelSegment(char dls[]);
 //Print error no reception
 void dabPrintErrorNoReception();
 
-}//namespace serial
+}//namespace serialPrintSi468x
 
 #endif //PRINT_SERIAL_H

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+    <cppcheck version="1.90"/>
+    <errors>
+        <error id="cstyleCast" severity="style" msg="C-style pointer casting" verbose="C-style pointer casting detected. C++ offers four different kinds of casts as replacements: static_cast, const_cast, dynamic_cast and reinterpret_cast. A C-style cast could evaluate to any of those automatically, thus it is considered safer if the programmer explicitly states which kind of cast is expected. See also: https://www.securecoding.cert.org/confluence/display/cplusplus/EXP05-CPP.+Do+not+use+C-style+casts." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1250"/>
+        </error>
+        <error id="cstyleCast" severity="style" msg="C-style pointer casting" verbose="C-style pointer casting detected. C++ offers four different kinds of casts as replacements: static_cast, const_cast, dynamic_cast and reinterpret_cast. A C-style cast could evaluate to any of those automatically, thus it is considered safer if the programmer explicitly states which kind of cast is expected. See also: https://www.securecoding.cert.org/confluence/display/cplusplus/EXP05-CPP.+Do+not+use+C-style+casts." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1349"/>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &amp;#039;rssi&amp;#039; can be reduced." verbose="The scope of the variable &amp;#039;rssi&amp;#039; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &amp;#039;i&amp;#039; can be reduced:&#10;void f(int x)&#10;{&#10;    int i = 0;&#10;    if (x) {&#10;        // it&amp;#039;s safe to move &amp;#039;int i = 0;&amp;#039; here&#10;        for (int n = 0; n &amp;lt; 10; ++n) {&#10;            // it is possible but not safe to move &amp;#039;int i = 0;&amp;#039; here&#10;            do_something(&amp;amp;i);&#10;        }&#10;    }&#10;}&#10;When you see this message it is always safe to reduce the variable scope 1 level." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2353"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="990"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;componentId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;componentId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="990"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1015"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;componentId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;componentId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1015"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1463"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;componentId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;componentId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1463"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1930"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;componentId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;componentId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1930"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2095"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;componentId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;componentId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2095"/>
+        </error>
+        <error id="constParameter" severity="style" msg="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" verbose="Parameter &amp;#039;serviceId&amp;#039; can be declared with const" sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2164"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &amp;#039;frequencyInformationList_t::id&amp;#039; is never used." verbose="struct member &amp;#039;frequencyInformationList_t::id&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2136"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &amp;#039;frequencyInformationList_t::rnm&amp;#039; is never used." verbose="struct member &amp;#039;frequencyInformationList_t::rnm&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2139"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &amp;#039;frequencyInformationList_t::continuityFlag&amp;#039; is never used." verbose="struct member &amp;#039;frequencyInformationList_t::continuityFlag&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2140"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &amp;#039;frequencyInformationList_t::controlField&amp;#039; is never used." verbose="struct member &amp;#039;frequencyInformationList_t::controlField&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2141"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &amp;#039;frequencyInformationListHeader_t::len&amp;#039; is never used." verbose="struct member &amp;#039;frequencyInformationListHeader_t::len&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2146"/>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &amp;#039;prefixDls.toggle&amp;#039; is assigned a value that is never used." verbose="Variable &amp;#039;prefixDls.toggle&amp;#039; is assigned a value that is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1128"/>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &amp;#039;prefixDls.charSet&amp;#039; is assigned a value that is never used." verbose="Variable &amp;#039;prefixDls.charSet&amp;#039; is assigned a value that is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1133"/>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &amp;#039;eventInformation&amp;#039; is assigned a value that is never used." verbose="Variable &amp;#039;eventInformation&amp;#039; is assigned a value that is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="1190"/>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &amp;#039;rssi&amp;#039; is assigned a value that is never used." verbose="Variable &amp;#039;rssi&amp;#039; is assigned a value that is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="2353"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;dabBegin&amp;#039; is never used." verbose="The function &amp;#039;dabBegin&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="975"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;deviceBegin&amp;#039; is never used." verbose="The function &amp;#039;deviceBegin&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="145"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;flashLoad&amp;#039; is never used." verbose="The function &amp;#039;flashLoad&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="452"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;readStorage&amp;#039; is never used." verbose="The function &amp;#039;readStorage&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="747"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;writeStorage&amp;#039; is never used." verbose="The function &amp;#039;writeStorage&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\SI468x.cpp" line="721"/>
+        </error>
+        <error id="compareBoolExpressionWithInt" severity="warning" msg="Comparison of a boolean expression with an integer." verbose="Comparison of a boolean expression with an integer." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\TactileSwitch.cpp" line="51"/>
+        </error>
+        <error id="compareBoolExpressionWithInt" severity="warning" msg="Comparison of a boolean expression with an integer." verbose="Comparison of a boolean expression with an integer." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\TactileSwitch.cpp" line="71"/>
+        </error>
+        <error id="compareBoolExpressionWithInt" severity="warning" msg="Comparison of a boolean expression with an integer." verbose="Comparison of a boolean expression with an integer." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\TactileSwitch.cpp" line="93"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;getNumber&amp;#039; is never used." verbose="The function &amp;#039;getNumber&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\TactileSwitch.cpp" line="32"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;callSerialMonitorApplication&amp;#039; is never used." verbose="The function &amp;#039;callSerialMonitorApplication&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\dabMenuSerial.cpp" line="20"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;callTactileSwitches&amp;#039; is never used." verbose="The function &amp;#039;callTactileSwitches&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\buttonApplication.cpp" line="13"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;dabPrintErrorNoReception&amp;#039; is never used." verbose="The function &amp;#039;dabPrintErrorNoReception&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\printSerial.cpp" line="558"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;printMono&amp;#039; is never used." verbose="The function &amp;#039;printMono&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\printSerial.cpp" line="194"/>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &amp;#039;isTime&amp;#039; is never used." verbose="The function &amp;#039;isTime&amp;#039; is never used." sinceDate="29.06.2020">
+            <location file="..\..\examples\Tuner_Shield_Dab\isTime.cpp" line="13"/>
+        </error>
+    </errors>
+</results>
