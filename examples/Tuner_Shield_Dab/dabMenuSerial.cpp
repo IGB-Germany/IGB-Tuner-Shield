@@ -30,20 +30,24 @@ void callSerialMonitorApplication()
   //Received signal quality
   if (ch == 'q')
   {
+    rsqInformation_t rsqInformation = readRsqInformation();
     //Print status information about the received signal quality
-    serialPrintSi468x::dabPrintRsqStatus(readRsqInformation());
+    serialPrintSi468x::dabPrintRsqStatus(rsqInformation);
   }
   //Ensemble info
   else if (ch == 'e')
   {
-    serialPrintSi468x::dabPrintEnsembleInformation(readEnsembleInformation());
+    ensembleInformation_t ensembleInformation = readEnsembleInformation();
+    serialPrintSi468x::dabPrintEnsembleInformation(ensembleInformation);
   }
 
   //Service info
   else if (ch == 'r')
   {
+    serviceInformation_t dabServiceInfo = readServiceInformation(serviceId);
+
     //Digital service information
-    serialPrintSi468x::dabPrintDigitalServiceInformation(readServiceInformation(serviceId));
+    serialPrintSi468x::dabPrintDigitalServiceInformation(dabServiceInfo);
   }
 
   //Free Ram
@@ -125,15 +129,17 @@ void menuMain(char ch)
   //Check DAB service data
   else if (ch == 'c')
   {
+    serviceData_t dabServiceData = readServiceData();
     //Prints service data
-    serialPrintSi468x::dabPrintServiceData(readServiceData());
+    serialPrintSi468x::dabPrintServiceData(dabServiceData);
   }
 
   //Get DAB service data
   else if (ch == 'v')
   {
+    serviceData_t dabServiceData = readServiceData(0, 1);
     //Prints service data
-    serialPrintSi468x::dabPrintServiceData(readServiceData(0, 1));
+    serialPrintSi468x::dabPrintServiceData(dabServiceData);
   }
 
   //next service
@@ -245,9 +251,9 @@ void menuMain(char ch)
   //Show Running Service
   else if (ch == 't')
   {
-    rsqInformation_t rsqInformation;
     //Get status information about the received signal quality
-    rsqInformation = readRsqInformation();
+    rsqInformation_t rsqInformation = readRsqInformation();
+
     serialPrintSi468x::dabPrintIndex(rsqInformation.index);
     serialPrintSi468x::dabPrintFrequency(rsqInformation.frequency);
     serialPrintSi468x::dabPrintIds(serviceId, componentId);
@@ -274,15 +280,34 @@ void menuScanEnsemble(char ch)
   //Get ensemble header
   else if (ch == 'h')
   {
-    getEnsembleHeader(ensembleHeader);
-    serialPrintSi468x::dabPrintEnsembleHeader(ensembleHeader);
+    //ensemble list availabel ?
+    eventInformation_t eventInformation = readEventInformation();
+    if (eventInformation.serviceListAvailable == 1)
+    {
+      getEnsembleHeader(ensembleHeader);
+      serialPrintSi468x::dabPrintEnsembleHeader(ensembleHeader);
+    }
+    else
+    {
+      serialPrintSi468x::printError(2);
+    }
   }
 
   //Parse ensemble
   else if (ch == 'p')
   {
-    getEnsemble(ensembleHeader);
-    serialPrintSi468x::dabPrintEnsemble(ensembleHeader);
+    //ensemble list available ?
+    eventInformation_t eventInformation = readEventInformation();
+
+    if (eventInformation.serviceListAvailable == 1)
+    {
+      getEnsemble(ensembleHeader);
+      serialPrintSi468x::dabPrintEnsemble(ensembleHeader);
+    }
+    else
+    {
+      serialPrintSi468x::printError(2);
+    }
   }
 
   //Start 1st Service
@@ -334,43 +359,68 @@ void menuTechnical(char ch)
   //Gets event information about the various events related to the DAB radio
   else if (ch == 'v')
   {
-    serialPrintSi468x::dabPrintEventInformation(readEventInformation());
+    eventInformation_t eventInformation = readEventInformation();
+    serialPrintSi468x::dabPrintEventInformation(eventInformation);
   }
 
   //Get audio information
   else if (ch == 'a')
   {
-    serialPrintSi468x::dabPrintComponentAudioInfo(readAudioInformation());
+    audioInformation_t audioInformation = readAudioInformation();
+    serialPrintSi468x::dabPrintComponentAudioInfo(audioInformation);
   }
 
   //Get and print technical information
   else if (ch == 'x')
   {
+    componentTechnicalInformation_t componentTechnicalInformation = readComponentTechnicalInformation(serviceId, componentId);
     //Print technical information about the component
-    serialPrintSi468x::dabPrintComponentTechnicalInformation(readComponentTechnicalInformation(serviceId, componentId));
+    serialPrintSi468x::dabPrintComponentTechnicalInformation(componentTechnicalInformation);
   }
 
   //Get and print date and time
   else if (ch == 'd')
   {
+    timeDab_t dabTime = readDateTime();
     //Print local date and time or UTC
-    serialPrintSi468x::dabPrintDateTimeInformation(readDateTime());
+    serialPrintSi468x::dabPrintDateTimeInformation(dabTime);
   }
 
   //Get information about the component
-  else if (ch == 'c')
+  else if (ch == 'o')
   {
-
     componentInformation_t componentInformation;
+
     readComponentInformation(componentInformation, serviceId, componentId);
     //Print information about the component
-    serialPrintSi468x::dabPrintComponentInformation(componentInformation);
+    serialPrintSi468x::printComponentInformation(componentInformation);
+
   }
 
   //Print DAB frequency information list
   else if (ch == 'i')
   {
-    readFrequencyInformationList();
+    //check events
+    eventInformation_t eventInformation = readEventInformation();
+
+    if (eventInformation.serviceLinkingInterrupt == 1)
+    {
+      serviceLinkingInformation_t serviceLinkingInformation = readServiceLinkingInfo(serviceId);
+      serialPrintSi468x::printServiceLinkingInformation(serviceLinkingInformation);
+    }
+    else
+    {
+      serialPrintSi468x::printError(3);
+    }
+
+    if (eventInformation.frequencyInterrupt == 1)
+    {
+      readFrequencyInformationList();
+    }
+    else
+    {
+      serialPrintSi468x::printError(3);
+    }
   }
 
   //Test varactor tuning capacitor
@@ -563,39 +613,55 @@ void menuDevice(char ch)
   //Print device status information
   else if (ch == 's')
   {
-    serialPrintSi468x::printStatusRegister(readStatusRegister());
+    statusRegister_t statusRegister = readStatusRegister();
+    serialPrintSi468x::printStatusRegister(statusRegister);
   }
 
   //Print Device Part Info
   else if (ch == 'n')
   {
-    serialPrintSi468x::printPartInfo(readPartInfo());
+    partInfo_t partInfo = readPartInfo();
+    serialPrintSi468x::printPartInfo(partInfo);
   }
 
   //Print system state
-  else if (ch == 'm')
+  else if (ch == 'y')
   {
     serialPrintSi468x::printSystemState(readSystemState());
   }
 
   //Print Firmware Information
-  else if (ch == 'f')
+  else if (ch == 'i')
   {
-    serialPrintSi468x::printFirmwareInformation(readFirmwareInformation());
+    firmwareInformation_t firmwareInformation = readFirmwareInformation();
+    serialPrintSi468x::printFirmwareInformation(firmwareInformation);
   }
 
+  //Print Parameters Used During Power Up
   else if (ch == 'a')
   {
     readPowerUpArguments(powerUpArguments);
-    //Print Parameters Used During Power Up
     serialPrintSi468x::printPowerUpArguments(powerUpArguments);
   }
 
+  //Print device property value list
   else if (ch == 'p')
   {
-    //Print device property value list
     serialPrintSi468x::printPropertyValueList(readPropertyValueList(propertyValueListDevice, NUM_PROPERTIES_DEVICE), NUM_PROPERTIES_DEVICE);
   }
+
+  //power down
+  else if (ch == 'd')
+  {
+    powerDown(true);
+  }
+  //power up
+  else if (ch == 'u')
+  {
+
+    powerDown(false);
+  }
+
   else
   {
     //nothing

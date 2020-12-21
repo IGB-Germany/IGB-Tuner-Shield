@@ -3,48 +3,68 @@
 #define SI468X_DRIVER_H
 
 /*
-  Driver for tuner circuit SI468x by IGB
+  Driver and application for tuner shield by IGB
 
-  SPI MOSI:   Pin 11
-  SPI MISO:   Pin 12
-  SPI SCK:    Pin 13
+  SPI
+  MOSI:   Pin 11
+  MISO:   Pin 12
+  SCK:    Pin 13
+  SS:     Pin 8
 
-  SPI SS:     Pin 8
+  Tuner circuit Si468x
   Interrupt:  Pin 6
   Reset:      Pin 3
 
   Flash memory circuit SST26W onboard
-  SPI SS:     Pin 2
+  SPI
+  SS:     Pin 2
 
-  Flash:  30786 Bytes (95%)
-  RAM:    850 Bytes (41%)
+  Memory needs
+  UNO
+  ROM:  30180 Bytes (93%)
+  RAM:    874 Bytes (42%)
+
+  Files
+  properties.h - needed for tuner circuit
+  firmware.h - needed for flash memory circuit
+
 */
 
 /*
-  Done:
-  replace NULL with nullptr - done
-  use enum for constants to save memory - done
+  Changelog
 
-  use reference & in function parameters to save memory - open
-  use write/read instead of get/set in function names - open
-  use standard uint8_t datatypes - open
-  create namespace driverSi468x to avoid conflicts - open
+  Changed: use paramaters per reference& in functions to save memory - open
+  Changed: use write/read and get/set in function names - open
+  Changed: uint8_t etc. datatypes - open
+  New: create namespaces like driverSi468x to avoid conflicts - open
   loadFirmware generic message handler to avoid PrintSerialFlashSst26 object - open
   loadFirmware works only with 0x100 because of flash (pagewise)- open
   readStorage() handle first 4 bytes of answer - open
-  readServiceInformation() delay tbd - open
+  readServiceInformation() delayMicroseconds tbd - open
   readFrequencyInformationList()- open
-  delay tbd - open
+  use interrupt or delayMicroseconds in functions - open
   use onboard flash/firmware location for different data like favorites, properties, program type - open
+  componentInformation_t userAppData - open
+  New: Create class - open
+  
+  Changed: printSerial functions get struct parameters per reference to save memory - done
+  Changed: readReply() and readReplyOffset() now returns true if correct read and not statusRegister_t - done
+  Changed: replace delay by delayMicroseconds with for() loop - done
+  New: replace NULL with nullptr - done
+  New: use enum for constants to save memory - done
 */
 
+//uint8_t
+#include "Arduino.h"
 
+//properties of tuner circuit
+#include "properties.h"
 
-const char version[8] = "0.08.04";
+const char version[8] = "0.08.05";
 
 enum SPI_FREQUENCY {SPI_FREQUENCY = 8000000UL};
 
-enum PINS
+enum pins_t
 {
   //Tuner circuit
   PIN_DEVICE_SLAVE_SELECT = 8,
@@ -58,7 +78,7 @@ enum PINS
 enum MAX_RETRY {MAX_RETRY = 10};
 
 //Device specific delay times
-enum DURATIONS_DEVICE
+enum durationsDevice_t
 {
   //Very critical for device to start up
   //https://github.com/arduino/Arduino/issues/129
@@ -68,12 +88,13 @@ enum DURATIONS_DEVICE
   DURATION_RESET        = 5000,//3ms see flowchart; 5ms tRSTB_HI see timing
   DURATION_POWER_UP     = 3000,//20us see flowchart; 3ms tPOWER_UP see timing
   DURATION_REPLY        = 3000,//?ms see flowchart; 1 ms see timing CTS polls @ 1 ms; tested 2500us
+  DURATION_REPLY_OFFSET = 10000,//
   DURATION_LOAD_INIT    = 4000,//4ms see flowchart; ?ms see timing
   DURATION_BOOT         = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
   DURATION_PROPERTY     = 10000//write / read PropertyValue
 };
 
-//Status register 2 Byte
+//Status register 22 Bits, 3 Bytes
 struct statusRegister_t
 {
   unsigned char cts:        1;  //Clear to Send
@@ -96,7 +117,7 @@ struct statusRegister_t
   unsigned char cmdErrCode: 8;  //command error code
 };
 
-//Firmware Revision 8 Byte
+//Firmware information 61 Bits, 8 Byte
 struct firmwareInformation_t
 {
   unsigned char revisionNumberMajor:  8;//REVEXT[7:0] Major revision number (first part of 1.2.3).
@@ -120,7 +141,7 @@ struct partInfo_t
   unsigned short partNumber;
 };
 
-//Device power up arguments 8 Byte
+//Device power up arguments 59 Bits, 8 Bytes
 struct powerUpArguments_t
 {
   unsigned char cts:        1;//0-1
@@ -134,10 +155,8 @@ struct powerUpArguments_t
 
 extern powerUpArguments_t powerUpArguments;
 
-//properties
-//Number of device properties
-enum NUM_PROPERTIES_DEVICE {NUM_PROPERTIES_DEVICE = 17};
-//2 dim list for device properties 68 Byte
+
+//2 dim list for device properties 68 Byte = 2*2*17
 extern unsigned short propertyValueListDevice[NUM_PROPERTIES_DEVICE][2];
 
 //Read 2 dimensional propery value list - a bit complicated :)
@@ -150,7 +169,7 @@ void writePropertyValueList(unsigned short propertyValueList[][2], unsigned char
 
 //Device functions
 //0x00 RD_REPLY Read answer of device
-statusRegister_t readReply(unsigned char reply[], unsigned long len);
+bool readReply(unsigned char reply[], unsigned long len);
 //0x01 POWER_UP Power-up the device and set system settings
 void powerUp(powerUpArguments_t powerUpArguments);
 //0x04 HOST_LOAD Loads an image from HOST over command interface
@@ -168,7 +187,8 @@ unsigned char readSystemState();
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
 void readPowerUpArguments(powerUpArguments_t &powerUpArguments);
 //0x10 READ_OFFSET Reads a portion of the response buffer (not the status)from an offset
-statusRegister_t readReplyOffset(unsigned char reply[], unsigned short len, unsigned short offset);
+//statusRegister_t readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
+bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
 //0x12 GET_FUNC_INFO Get Firmware Information
 firmwareInformation_t readFirmwareInformation();
 //0x13 SET_PROPERTY Sets the value of a property
@@ -199,6 +219,9 @@ statusRegister_t readStatusRegister();
 void initalize();
 //Reset
 void reset(unsigned char resetPin = PIN_DEVICE_RESET);
+//Power Down
+void powerDown(bool enable, unsigned char resetPin = PIN_DEVICE_RESET);
+
 //Load Firmware from flash memory to device
 void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware);
 //Get free RAM
@@ -286,7 +309,7 @@ struct ensembleHeader_t
   serviceList_t* serviceList;
 };
 
-//Time 8 Byte
+//Time 8 Bytes
 struct timeDab_t
 {
   unsigned short  year;
@@ -295,57 +318,60 @@ struct timeDab_t
   unsigned char   hour;
   unsigned char   minute;
   unsigned char   second;
-  unsigned char   type : 1; //UTC or local
+  unsigned char   type; //UTC or local
 };
 
-//Audio component information 4 Byte
+//Audio component information 6 Bytes
 struct audioInformation_t
 {
-  unsigned short audioBitRate:    16;// AUDIO_BIT_RATE[15:0] Audio bit rate of the current audio service (kbps).
-  unsigned short audioSampleRate: 16;//AUDIO_SAMPLE_RATE[15:0] Sample rate of the current audio service (Hz).
+  unsigned short audioBitRate:    16;// AUDIO_BIT_RATE[15:0] Audio bit rate of the current audio service (kbps)
+  unsigned short audioSampleRate: 16;//AUDIO_SAMPLE_RATE[15:0] Sample rate of the current audio service (Hz)
   unsigned char audioPsFlag:      1; //Audio Parametric Stereo flag
   unsigned char audioSbrFlag:     1; //Spectral Band Replication flag enhance sound for low bitrates
   unsigned char audioMode:        2; //0 : dual 1 : mono 2 : stereo 3 : joint stereo
   unsigned char audioDrcGain:     6; //dynamic range control from 0 to 63, representing 0 to 15.75dB
+
 };
 
-//Ensemble Information 7 Byte
+//Ensemble Information 23 Bytes
 struct ensembleInformation_t
 {
-  unsigned short ensembleId;      //EID[15:0] The ensemble ID EID. See section 6.4 of ETSI EN 300401.
-  char ensembleLabel[17];         //16 characters for the ensemble label terminated by '/0'
-  unsigned char ecc;              //The ensemble Extended Country Code (ECC)
-  unsigned char charSet;          //The character set for the component label
-  unsigned short abbreviationMask;//The component label abbreviation mask.
+  unsigned short ensembleId;      //EID[15:0] The ensemble ID EID. See section 6.4 of ETSI EN 300401
+  char label[17];                 //16 characters for the ensemble label terminated by '/0'
+  unsigned char ecc;              //Extended Country Code (ECC)
+  unsigned char charSet;          //character set for the component label
+  unsigned short abbreviationMask;//component label abbreviation mask
 };
 
-//Service Information
+//Service Information 31 Bytes
 struct serviceInformation_t
 {
   unsigned long serviceId;
 
   //serviceInfo1
-  unsigned char serviceLinkingInfoFlag: 1; //service linking info
-  unsigned char pType:                  5; //Program type
-  unsigned char pdFlag:                 1; //Audio program or data flag
+
+  uint8_t serviceLinkingInfoFlag: 1; //service linking info
+  uint8_t pType:                  5; //Program type
+  uint8_t pdFlag:                 1; //Audio program or data flag
 
   //serviceInfo2
-  unsigned char localFlag:              1; //Indicates if the service is available over the entire (0) or part (1) of the ensemble service area
-  unsigned char caId:                   3; //Conditional Access Identifier (0 = unscrambled, 1 = NR-MSK, 2 Eurocrypt EN 50094
-  unsigned char numComponents:          4; //Number of components in service (M <= 15)
+  uint8_t localFlag:              1; //Indicates if the service is available over the entire (0) or part (1) of the ensemble service area
+  uint8_t caId:                   3; //Conditional Access Identifier (0 = unscrambled, 1 = NR-MSK, 2 Eurocrypt EN 50094
+  uint8_t numComponents:          4; //Number of components in service (M <= 15)
 
   //serviceInfo3
-  unsigned char characterSet:           4;//Character sets (Charset)
-  unsigned char ecc;                      //The ensemble Extended Country Code (ECC)
+  uint8_t characterSet:           4;//Character sets (Charset)
+  uint8_t ecc;                      //The ensemble Extended Country Code (ECC)
 
   char serviceLabel[17];                  //Service Label
-  unsigned short abbreviationMask;        //The component label abbreviation mask.
+  uint16_t abbreviationMask;        //The component label abbreviation mask.
 };
 
+//11 Bytes
 struct componentInformation_t
 {
   unsigned char globalId:           8;//The global reference for the component
-  //unsigned char alignPad1:          8;//
+  //unsigned char alignPad1:        8;//
   unsigned char language:           6;//The language of the component
   unsigned char characterSet:       6;//The character set for the component label
   char label[17];                   //The component label
@@ -355,10 +381,11 @@ struct componentInformation_t
   unsigned char lenTotal:           8;//LENUA[7:0] The total length (in byte) of the UATYPE, UADATALEN and UADATA fields, including the padding bytes which is described in UADATAN field.
   unsigned short userAppType:       16;//UATYPE[15:0] The user application type. TS 101 756 [16], table 16. If multiple UA Types exist, all UATTYPE fields will be aligned on a 16-bit (2 byte) boundary.
   unsigned char lenField:           8;//The user application data field length, in the range 0 to 23, excluding the padding byte which is described in UADATAN field.
-  char* userAppData;                //UADATA0[7:0] The first user application data byte.
+  unsigned char* userAppData;     //UADATA0[7:0] The first user application data byte.
   //unsigned char alignPad3:          8;//
 };
 
+//4 Bytes
 struct eventInformation_t
 {
   unsigned char ensembleReconfigInterrupt:          1;
@@ -376,6 +403,7 @@ struct eventInformation_t
   unsigned short currentServiceListVersion:         16;
 };
 
+//18 Bytes
 struct rsqInformation_t
 {
   unsigned char hardMuteInterrupt:  1;//Indicates that the audio had been muted This is likely due to poor signal conditions
@@ -438,9 +466,27 @@ struct serviceData_t
   unsigned char* payload;
 };
 
+struct linkageSegmentTable_t
+{
+  unsigned char numberLinksSegment;//The number of links returned in linkage set segment
+  unsigned long linkageSetSegment[];//The link ID of linkage set segment
+};
+
+struct serviceLinkingInformation_t
+{
+  unsigned short size;//The total number of bytes returned in the service linking information payload.
+  unsigned char numLinkSets;//The total number of Linkage Set segments returned in the payload.
+  unsigned short lsn;//The Linkage Set Number (LSN) for linkage set segment 0.
+  unsigned char activeFlag          : 1; //Indicates whether or not this linkage set segment is activated or deactivated.
+  unsigned char shortHandFlag       : 1; //Indicates whether or not this linkage set has the SHD (shorthand) flag set.
+  unsigned char linkType            : 2; //Indicates the link type for all links in linkage set segment 0.
+  unsigned char hardLinkFlag        : 1; //Indicates if the links in linkage set segment 0 are soft or hard links.
+  unsigned char internationalFlag   : 1; //Indicates if the links in linkage set segment 0 are national or international.
+  linkageSegmentTable_t linkageSegmentTable[];//Table of linkage segments
+};
 
 //DAB specific delay times
-enum DURATIONS_DAB
+enum durationsDab_t
 {
   //in mikroseconds
   DURATION_STOP_START_SERVICE   = 10000,
@@ -449,7 +495,7 @@ enum DURATIONS_DAB
   DURATION_10000_MIKROS         = 10000,//Get ensemble info
 };
 
-enum CONSTANTS_DAB
+enum constantsDab_t
 {
   MAX_INDEX = 48,//Maximal number of indices in table
   //Very memory intensive for Uno !
@@ -457,6 +503,13 @@ enum CONSTANTS_DAB
   MAX_NUMBER_SERVICES   = 20, //to ETSI standard<=32
   MAX_NUMBER_COMPONENTS = 4  //to ETSI standard<=15
 };
+
+//Callback function pointer
+void (callback_fp)(void);
+
+void setCallback(void (*ServiceData)(void));
+//runs continuously
+void eventHandler(void);
 
 
 //Actual Digital Service
@@ -485,8 +538,6 @@ unsigned long* readFrequencyTable();
 //Read number of frequencies
 unsigned char readNumberFrequencies();
 
-//Number properties DAB
-enum NUM_PROPERTIES_DAB {NUM_PROPERTIES_DAB = 26};
 //Property value list DAB
 extern unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2];
 
@@ -529,9 +580,9 @@ unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection =
 
 
 //0x81 START_DIGITAL_SERVICE Starts an audio or data service
-void startService(unsigned long &serviceId, unsigned long &componentId, const unsigned char serviceType = 0);
+void startService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType = 0);
 //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service
-void stopService(unsigned long &serviceId, unsigned long &componentId, const unsigned char serviceType = 0);
+void stopService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType = 0);
 //0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services*/
 serviceData_t readServiceData(unsigned char statusOnly = 1, unsigned char ack = 0);
 //0xB0 Tunes to frequency index
@@ -560,7 +611,7 @@ unsigned long readFrequencyInformationList();
 
 //to do
 //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
-bool readServiceLinkingInfo(unsigned long &serviceId);
+serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId);
 
 
 //Tuner commands
@@ -718,5 +769,6 @@ enum COMMANDS_FM
   FM_RDS_STATUS     = 0x34,//0x34 FM_RDS_STATUS Queries the status of RDS decoder and Fifo.
   FM_RDS_BLOCKCOUNT = 0x35,//0x35 FM_RDS_BLOCKCOUNT Queries the block statistic info of RDS decoder.
 };
+
 
 #endif //SI468X_DRIVER_H

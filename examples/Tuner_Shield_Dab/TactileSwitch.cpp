@@ -1,7 +1,7 @@
 /*tactile button functions*/
 #include "TactileSwitch.h"
 
-TactileSwitch::TactileSwitch(uint8_t buttonPin, uint8_t number, uint8_t mode, bool enablePullUp)
+TactileSwitch::TactileSwitch(uint8_t buttonPin, uint8_t number, bool mode, bool enablePullUp)
 {
   _event = BTN_NO_ACTION;
   _buttonPin  = buttonPin;
@@ -48,7 +48,7 @@ TactileSwitch::action TactileSwitch::checkUserAction()
   _buttonVal = digitalRead(_buttonPin);
 
   //button pressed down and _timeDebounce elapsed
-  if (_buttonVal == !_mode && _buttonLast == _mode && (millis() - _timeReleased) > _durationDebounce)
+  if (_buttonVal == !_mode && _buttonLast == _mode && ((millis() - _timeReleased) > _durationDebounce))
     //if (_buttonVal == LOW && _buttonLast == HIGH && (millis() - _timeReleased) > _durationDebounce)
   {
     //save time when button was pressed down
@@ -68,7 +68,7 @@ TactileSwitch::action TactileSwitch::checkUserAction()
   }
 
   //button released and _timeDebounce elapsed
-  else if (_buttonVal == _mode && _buttonLast == !_mode && (millis() - _timeReleased) > _durationDebounce)
+  else if (_buttonVal == _mode && _buttonLast == !_mode && ((millis() - _timeReleased) > _durationDebounce))
     //else if (_buttonVal == HIGH && _buttonLast == LOW && (millis() - _timeReleased) > _durationDebounce)
   {
     if (! _ignoreUp)
@@ -90,7 +90,7 @@ TactileSwitch::action TactileSwitch::checkUserAction()
   }
 
   // Test for normal click event: _doubleClickTime expired
-  if ( _buttonVal == _mode && (millis() - _timeReleased) >= _durationDoubleClick && _dcWaiting == true && _dcOnUp == false && _singleOK == true && _event != BTN_DBL_PUSH)
+  if ( _buttonVal == _mode && ((millis() - _timeReleased) >= _durationDoubleClick) && _dcWaiting == true && _dcOnUp == false && _singleOK == true && _event != BTN_DBL_PUSH)
     //if ( _buttonVal == HIGH && (millis() - _timeReleased) >= _durationDoubleClick && _dcWaiting == true && _dcOnUp == false && _singleOK == true && event != BTN_DBL_PUSH)
   {
     _event = BTN_PUSH;
@@ -127,6 +127,3 @@ TactileSwitch::action TactileSwitch::checkUserAction()
 
   return _event;
 }
-
-
-

@@ -4,6 +4,11 @@
 //use snprintf, Serial
 #include "Arduino.h"
 
+//flash functions
+#include "FlashSst26.h"
+//Class for serial print functions
+#include "PrintSerialFlashSst26.h"
+
 //namespace to avoid naming conflicts
 namespace serialPrintSi468x
 {
@@ -14,12 +19,25 @@ void printVersion(const char version[])
   //Serial.println(F(__FILE__));
   Serial.println(F(__DATE__));
   //Serial.println(F(__TIME__));
-  Serial.print(F("Version:\t"));
   Serial.println(version);
   Serial.println();
 }
 
-void printStatusRegister(statusRegister_t statusRegister)
+void printFlashMemoryInfo()
+{
+  //Create local object to use Flash Memory
+  FlashSst26 flashSst26(PIN_FLASH_SLAVE_SELECT, SPI_FREQUENCY);
+
+  //Manufacturer Id: Silicon Storage Technolgies = 0xBF
+  //Device Id: SST26WF016B/016BA = 0x51
+
+  FlashSst26::id_t id = flashSst26.readId();
+  Serial.print(F("Flash Jedec Id:\t"));
+  Serial.println(id.jedecId, HEX);
+  Serial.println();
+}
+
+void printStatusRegister(statusRegister_t& statusRegister)
 {
   if      (statusRegister.state == 0)  Serial.println(F("Waiting for Power Up Cmd"));
   else if (statusRegister.state == 1)  Serial.println(F("Reserved"));
@@ -57,7 +75,7 @@ void printStatusRegister(statusRegister_t statusRegister)
   Serial.println();
 }
 
-void printPartInfo(partInfo_t partInfo)
+void printPartInfo(partInfo_t& partInfo)
 {
   Serial.print(F("Chip Rev.:\t"));
   Serial.println(partInfo.chipRev);
@@ -86,7 +104,8 @@ void printSystemState(unsigned char systemState)
   Serial.println();
 }
 
-void printFirmwareInformation(firmwareInformation_t firmwareInformation)
+//Print firmware information
+void printFirmwareInformation(firmwareInformation_t& firmwareInformation)
 {
   Serial.print(F("Firmware Revision:\t"));
   Serial.print(firmwareInformation.revisionNumberMajor);
@@ -107,8 +126,8 @@ void printFirmwareInformation(firmwareInformation_t firmwareInformation)
   Serial.println();
 }
 
-/*Print power up parameters*/
-void printPowerUpArguments(powerUpArguments_t powerUpArguments)
+//Print power up parameters
+void printPowerUpArguments(powerUpArguments_t& powerUpArguments)
 {
   Serial.println(F("Power Up Arguments"));
   Serial.print(F("Clock Mode (0,1,2,3):\t"));
@@ -198,8 +217,8 @@ void printMono(uint8_t mono)
   Serial.println();
 }
 
-/*Print status information about the received signal quality*/
-void dabPrintRsqStatus(rsqInformation_t rsqInformation)
+//Print status information about the received signal quality
+void dabPrintRsqStatus(rsqInformation_t& rsqInformation)
 {
   Serial.println(F("Receive Quality Info:"));
   Serial.print(F("Hardmute IRQ:\t"));
@@ -251,11 +270,11 @@ void dabPrintRsqStatus(rsqInformation_t rsqInformation)
 }
 
 //Print status information of the digital service
-void dabPrintEnsembleInformation(ensembleInformation_t ensembleInformation)
+void dabPrintEnsembleInformation(ensembleInformation_t& ensembleInformation)
 {
   Serial.println(F("Ensemble Info"));
   Serial.print(F("Label:\t\t\t"));
-  Serial.println(ensembleInformation.ensembleLabel);
+  Serial.println(ensembleInformation.label);
   Serial.print(F("Id:\t\t\t0x"));
   Serial.println(ensembleInformation.ensembleId, HEX);
   Serial.print(F("Extended Country Code:\t"));
@@ -267,23 +286,23 @@ void dabPrintEnsembleInformation(ensembleInformation_t ensembleInformation)
   Serial.println();
 }
 
-/*Print event information of the digital service*/
-void dabPrintEventInformation(eventInformation_t eventInformation)
+//Print event information of the digital service
+void dabPrintEventInformation(eventInformation_t& eventInformation)
 {
-  Serial.println(F("Event Information:"));
-  Serial.print(F("Reconfiguration:\t"));
+  Serial.println(F("Event Information"));
+  Serial.print(F("Reconfiguration INT:\t"));
   Serial.println(eventInformation.ensembleReconfigInterrupt);
-  Serial.print(F("Reconfig. Warning:\t"));
+  Serial.print(F("Reconfig. Warning INT:\t"));
   Serial.println(eventInformation.ensembleReconfigWarningInterrupt);
-  Serial.print(F("Announcement:\t\t"));
+  Serial.print(F("Announcement INT:\t"));
   Serial.println(eventInformation.announcementInterrupt);
-  Serial.print(F("Other Service:\t\t"));
+  Serial.print(F("Other Service INT:\t"));
   Serial.println(eventInformation.otherServiceInterrupt);
-  Serial.print(F("Service Linking:\t"));
+  Serial.print(F("Service Linking INT:\t"));
   Serial.println(eventInformation.serviceLinkingInterrupt);
-  Serial.print(F("Frequency Interrupt:\t"));
+  Serial.print(F("Frequency Info INT:\t"));
   Serial.println(eventInformation.frequencyInterrupt);
-  Serial.print(F("Service List IRQ:\t"));
+  Serial.print(F("Service List INT:\t"));
   Serial.println(eventInformation.serviceListInterrupt);
   Serial.print(F("Announcement avail.:\t"));
   Serial.println(eventInformation.announcementAvailable);
@@ -300,8 +319,8 @@ void dabPrintEventInformation(eventInformation_t eventInformation)
   Serial.println();
 }
 
-/*Print component audio information*/
-void dabPrintComponentAudioInfo(audioInformation_t audioInformation)
+//Print component audio information
+void dabPrintComponentAudioInfo(audioInformation_t& audioInformation)
 {
   Serial.println(F("Audio Info:"));
   Serial.print(F("Bit Rate:\t"));
@@ -322,8 +341,8 @@ void dabPrintComponentAudioInfo(audioInformation_t audioInformation)
   Serial.println();
 }
 
-/*Print local date and time or UTC*/
-void dabPrintDateTimeInformation(timeDab_t dabTime)
+//Print date and time
+void dabPrintDateTimeInformation(timeDab_t& dabTime)
 {
   const unsigned char len = 28;
   char string[len];
@@ -342,55 +361,27 @@ void dabPrintDateTimeInformation(timeDab_t dabTime)
   Serial.println();
 }
 
-//Print component technical information
-void dabPrintComponentTechnicalInformation(componentTechnicalInformation_t componentTechnicalInformation)
-{
-  Serial.println(F("Component Technical Info"));
-  Serial.print(F("Service Mode (0-8):\t"));
-  Serial.print(componentTechnicalInformation.serviceMode);
-  //Serial.println(F("0:AUDIO, 1:DATA, 2:FIDC, 3:MSC, 4:DAB+, 5:DAB, 6:FIC, 7:XPAD, 8:NO MEDIA"));
-  if (componentTechnicalInformation.serviceMode == 0)
-    Serial.println(F("\tAudio"));
-  else if (componentTechnicalInformation.serviceMode == 1)
-    Serial.println(F("\tData"));
-  else if (componentTechnicalInformation.serviceMode == 4)
-    Serial.println(F("\tDAB+"));
-  else Serial.println();
 
-  Serial.print(F("UEP/EEP Protection:\t"));
-  Serial.println(componentTechnicalInformation.protectionInfo);
-  Serial.print(F("Bit Rate:\t\t"));
-  Serial.print(componentTechnicalInformation.bitRate);
-  Serial.println(F(" kbps"));
-  Serial.print(F("Capacity Units:\t\t"));
-  Serial.println(componentTechnicalInformation.numberCU);
-  Serial.print(F("C.U. Start Adress:\t"));
-  Serial.println(componentTechnicalInformation.addressCU );
-  Serial.println();
-}
-
-/*Print information about the component*/
-void dabPrintComponentInformation(componentInformation_t componentInformation)
+//Print Service Linking Information
+void printServiceLinkingInformation(serviceLinkingInformation_t& serviceLinkingInformation)
 {
-  Serial.println(F("Component Information"));
-  Serial.print(F("Global Id:\t"));
-  Serial.println(componentInformation.globalId);
-  Serial.print(F("Language:\t"));
-  Serial.println(componentInformation.language);
-  Serial.print(F("Character Set:\t"));
-  Serial.println(componentInformation.characterSet);
-  Serial.print(F("Label:\t"));
-  Serial.println(componentInformation.label);
-  Serial.print(F("Abbrev. Mask:\t"));
-  Serial.println(componentInformation.abbreviationMask, BIN);
-  Serial.print(F("Number of Apps:\t"));
-  Serial.println(componentInformation.numberUserAppTypes);
-  Serial.print(F("User App. Type:\t"));
-  Serial.println(componentInformation.userAppType);
-  Serial.print(F("Total Length:\t"));
-  Serial.println(componentInformation.lenTotal);
-  Serial.print(F("Field Length:\t"));
-  Serial.println(componentInformation.lenField);
+  Serial.println(F("Service Linking Info"));
+  Serial.print(F("Size:\t\t\t"));
+  Serial.println(serviceLinkingInformation.size);
+  Serial.print(F("Number of Sets:\t\t"));
+  Serial.println(serviceLinkingInformation.numLinkSets);
+  Serial.print(F("Linkage Set Number:\t"));
+  Serial.println(serviceLinkingInformation.lsn);
+  Serial.print(F("Active Flag:\t\t"));
+  Serial.println(serviceLinkingInformation.activeFlag);
+  Serial.print(F("Short Hand Flag:\t"));
+  Serial.println(serviceLinkingInformation.shortHandFlag);
+  Serial.print(F("Link Type:\t\t"));
+  Serial.println(serviceLinkingInformation.linkType);
+  Serial.print(F("Hard Link Flag:\t\t"));
+  Serial.println(serviceLinkingInformation.hardLinkFlag);
+  Serial.print(F("International Flag:\t"));
+  Serial.println(serviceLinkingInformation.internationalFlag);
   Serial.println();
 }
 
@@ -410,6 +401,7 @@ void dabPrintFrequency(unsigned long frequency)
   Serial.print(frequency);
   Serial.print(F(" kHz\n"));
 }
+
 
 //Print frequency table
 void dabPrintFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq)
@@ -435,7 +427,7 @@ void dabPrintIndex(unsigned char index)
   Serial.println(index);
 }
 
-/*Print valid index list*/
+//Print valid index list
 void dabPrintValidIndexList(unsigned char dabNumValidIndex, unsigned char dabValidIndexList[])
 {
   Serial.println(F("Valid Index List:"));
@@ -452,8 +444,8 @@ void dabPrintValidIndexList(unsigned char dabNumValidIndex, unsigned char dabVal
 }
 
 
-/*Prints status information of the digital service*/
-void dabPrintDigitalServiceInformation(serviceInformation_t dabServiceInfo)
+//Prints information about the digital service
+void dabPrintDigitalServiceInformation(serviceInformation_t& dabServiceInfo)
 {
   Serial.println(F("Service Info"));
   Serial.print(F("Service Label:\t\t"));
@@ -470,9 +462,9 @@ void dabPrintDigitalServiceInformation(serviceInformation_t dabServiceInfo)
   Serial.println(dabServiceInfo.caId);
   Serial.print(F("Number of Components:\t"));
   Serial.println(dabServiceInfo.numComponents);
-  Serial.print(F("Character Set:\t\t0b"));
+  Serial.print(F("Char. Set:\t\t0b"));
   Serial.println(dabServiceInfo.characterSet, BIN);
-  Serial.print(F("Extended Country Code:\t"));
+  Serial.print(F("Extended Country Code ECC:\t"));
   Serial.println(dabServiceInfo.ecc);
   Serial.print(F("Abbreviation Mask:\t0b"));
   Serial.println(dabServiceInfo.abbreviationMask, BIN);
@@ -480,7 +472,7 @@ void dabPrintDigitalServiceInformation(serviceInformation_t dabServiceInfo)
 }
 
 //Print ensemble header
-void dabPrintEnsembleHeader(ensembleHeader_t ensembleHeader)
+void dabPrintEnsembleHeader(ensembleHeader_t& ensembleHeader)
 {
   Serial.println(F("Ensemble Header"));
   Serial.print(F("Size [Bytes]:\t"));
@@ -493,7 +485,7 @@ void dabPrintEnsembleHeader(ensembleHeader_t ensembleHeader)
 }
 
 //Print Ensemble
-void dabPrintEnsemble(ensembleHeader_t ensembleHeader)
+void dabPrintEnsemble(ensembleHeader_t& ensembleHeader)
 {
   dabPrintEnsembleHeader(ensembleHeader);
 
@@ -519,8 +511,64 @@ void dabPrintEnsemble(ensembleHeader_t ensembleHeader)
   Serial.println();
 }
 
-/*Print Service Data*/
-void dabPrintServiceData(serviceData_t dabServiceData)
+//Print component technical information
+void dabPrintComponentTechnicalInformation(componentTechnicalInformation_t& componentTechnicalInformation)
+{
+  Serial.println(F("Component Technical Info"));
+  Serial.print(F("Service Mode (0-8):\t"));
+  Serial.print(componentTechnicalInformation.serviceMode);
+  //Serial.println(F("0:AUDIO, 1:DATA, 2:FIDC, 3:MSC, 4:DAB+, 5:DAB, 6:FIC, 7:XPAD, 8:NO MEDIA"));
+  if (componentTechnicalInformation.serviceMode == 0)
+    Serial.println(F("\tAudio"));
+  else if (componentTechnicalInformation.serviceMode == 1)
+    Serial.println(F("\tData"));
+  else if (componentTechnicalInformation.serviceMode == 4)
+    Serial.println(F("\tDAB+"));
+  else Serial.println();
+
+  Serial.print(F("UEP/EEP Protection:\t"));
+  Serial.println(componentTechnicalInformation.protectionInfo);
+  Serial.print(F("Bit Rate:\t\t"));
+  Serial.print(componentTechnicalInformation.bitRate);
+  Serial.println(F(" kbps"));
+  Serial.print(F("Capacity Units:\t\t"));
+  Serial.println(componentTechnicalInformation.numberCU);
+  Serial.print(F("C.U. Start Adress:\t"));
+  Serial.println(componentTechnicalInformation.addressCU );
+  Serial.println();
+}
+
+
+//Print information about the component
+void printComponentInformation(componentInformation_t& componentInformation)
+{
+  Serial.println(F("Component Information"));
+  Serial.print(F("Global Id:\t"));
+  Serial.println(componentInformation.globalId);
+  Serial.print(F("Language:\t"));
+  Serial.println(componentInformation.language);
+  Serial.print(F("Character Set:\t"));
+  Serial.println(componentInformation.characterSet);
+  Serial.print(F("Label:\t"));
+  Serial.println(componentInformation.label);
+  Serial.print(F("Abbrev. Mask:\t"));
+  Serial.println(componentInformation.abbreviationMask, BIN);
+  Serial.print(F("Number of Apps:\t"));
+  Serial.println(componentInformation.numberUserAppTypes);
+  Serial.print(F("User App. Type:\t"));
+  Serial.println(componentInformation.userAppType);
+  Serial.print(F("Total Length:\t"));
+  Serial.println(componentInformation.lenTotal);
+  Serial.print(F("Field Length:\t"));
+  Serial.println(componentInformation.lenField);
+  Serial.print(F("User App Data:\t"));
+  for (unsigned char i = 0;  i < componentInformation.lenField; i++)
+    Serial.print(componentInformation.userAppData[i]);
+  Serial.println();
+}
+
+//Print Service Data
+void dabPrintServiceData(serviceData_t& dabServiceData)
 {
   Serial.println(F("Service Data"));
   Serial.print(F("Error: "));
@@ -550,17 +598,25 @@ void dabPrintServiceData(serviceData_t dabServiceData)
   Serial.println();
 }
 
-/*Print dls*/
+//Print dls
 void dabPrintDynamicLabelSegment(char dls[])
 {
   Serial.println(dls);
   Serial.println();
 }
 
-//Print error no reception
-void dabPrintErrorNoReception()
+//Print error
+void printError(unsigned char errorCode)
 {
-  Serial.println(F("Error - No Reception"));
+  Serial.print(F("Error:\t"));
+  Serial.println(errorCode);
+  if (errorCode == 1)
+    Serial.println(F("No Reception"));
+  if (errorCode == 2)
+    Serial.println(F("No Servicelist"));
+  if (errorCode == 3)
+    Serial.println(F("No Service Linking"));
+
   Serial.println();
 }
 
@@ -573,7 +629,7 @@ void dabPrintMenu()
   Serial.println(F("E: DAB Menu Scan Ensemble"));
   Serial.println(F("F: DAB Menu Scan Frequency"));
   Serial.println(F("T: DAB Menu Technical"));
-  Serial.println(F("D: DAB Menu Device"));
+  Serial.println(F("D: Device Menu"));
   Serial.println();
 }
 
@@ -608,17 +664,17 @@ void dabPrintMenuMain()
   Serial.println();
 }
 
-/*Print DAB Technical Menu*/
+//Print DAB Technical Menu
 void dabPrintMenuTechnical()
 {
   Serial.println(F("DAB Menu Technical"));
-  /*Print General Menu*/
+  //Print General Menu
   dabPrintMenu();
   Serial.println(F("v: Event Info"));
   Serial.println(F("a: Audio Info"));
   Serial.println(F("x: Technical Info"));
   Serial.println(F("d: Date and Time"));
-  Serial.println(F("c: Component Info"));
+  Serial.println(F("o: Component Info"));
   Serial.println(F("i: Frequency List"));
   Serial.println(F("t: Test Varactor"));
   Serial.println(F("r: RSSI"));
@@ -656,6 +712,7 @@ void printMenuScanEnsemble()
   Serial.println(F("e: Ensemble Information"));
   Serial.println(F("h: Header Ensemble"));
   Serial.println(F("p: Parse Ensemble"));
+  Serial.println(F("r: Info Service"));
   Serial.println(F("0: Start 1st Service"));
   Serial.println();
   Serial.println(F("t: Check Service Data"));
@@ -667,19 +724,21 @@ void printMenuScanEnsemble()
 }
 
 
-/*Print Device Menu*/
+//Print Device Menu
 void dabPrintMenuDevice()
 {
-  Serial.println(F("DAB Menu Device"));
-  /*Print General Menu*/
+  Serial.println(F("Device Menu"));
+  //Print General Menu
   dabPrintMenu();
   Serial.println(F("v: Version Info"));
   Serial.println(F("a: Power Up Arguments"));
-  Serial.println(F("n: Part Number"));
-  Serial.println(F("m: Firmware Image Mode"));
-  Serial.println(F("f: Firmware Info"));
-  Serial.println(F("s: Status of Device"));
-  Serial.println(F("p: Properties Device"));
+  Serial.println(F("n: Part Info"));
+  Serial.println(F("y: System State"));
+  Serial.println(F("i: Firmware Info"));
+  Serial.println(F("s: Status"));
+  Serial.println(F("p: Properties"));
+  Serial.println(F("d: Power Down"));
+  Serial.println(F("u: Power Up"));
   Serial.println();
 }
 

@@ -1,7 +1,10 @@
 #ifndef PROPERTIES_H
 #define PROPERTIES_H
 
-//properties of menuDevice, DAB, FM, AM
+//properties of Device, DAB, FM, AM
+
+//Number of device properties
+enum NUM_PROPERTIES_DEVICE {NUM_PROPERTIES_DEVICE = 17};
 
 enum PROPERTIES_DEVICE
 {
@@ -54,6 +57,9 @@ enum PROPERTIES_DEVICE
   HD_TEST_DEBUG_AUDIO = 0xE801
 
 };
+
+//Number properties DAB
+enum NUM_PROPERTIES_DAB {NUM_PROPERTIES_DAB = 26};
 
 enum PROPERTIES_DAB
 {
@@ -126,6 +132,9 @@ enum PROPERTIES_DAB
   DAB_ANNOUNCEMENT_ENABLE = 0xB700
 
 };
+
+//Number properties FM
+enum NUM_PROPERTIES_FM {NUM_PROPERTIES_FM = 36};
 
 enum PROPERTIES_FM
 {

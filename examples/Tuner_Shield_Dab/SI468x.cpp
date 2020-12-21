@@ -21,8 +21,7 @@
 #include "ComDriverSpi.h"
 ComDriverSpi tuner(PIN_DEVICE_SLAVE_SELECT, SPI_FREQUENCY);
 
-//properties of tuner circuit
-#include "properties.h"
+
 //flash functions
 #include "FlashSst26.h"
 //Serial Monitor Print Functions
@@ -144,14 +143,24 @@ unsigned short propertyValueListDevice[NUM_PROPERTIES_DEVICE][2] =
 //Start
 void deviceBegin()
 {
+  statusRegister_t statusRegister;
+  
+  //SW version
   serialPrintSi468x::printVersion(version);
 
+  //check if Flash Memory is present
+  serialPrintSi468x::printFlashMemoryInfo();
+
   initalize();
+
   reset();
+
   powerUp(powerUpArguments);
+
   loadFirmware(addrBootloaderPatchFull, sizeBootloaderPatchFull); //FullPatch
 
-  serialPrintSi468x::printStatusRegister(readStatusRegister());
+  statusRegister = readStatusRegister();
+  serialPrintSi468x::printStatusRegister(statusRegister);
 
   loadFirmware(addrFirmwareDab, sizeFirmwareDab);//DAB Firmware
 
@@ -159,8 +168,10 @@ void deviceBegin()
   //serialPrintSi468x::devicePrintStatus(deviceGetStatus());
   //Boot device
   boot();
+
+  statusRegister = readStatusRegister();
   //Print device status information
-  serialPrintSi468x::printStatusRegister(readStatusRegister());
+  serialPrintSi468x::printStatusRegister(statusRegister);
 
   //Set device properties
   writePropertyValueList(propertyValueListDevice, NUM_PROPERTIES_DEVICE);
@@ -215,10 +226,6 @@ void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware)
 
   //Create local object to use Flash Memory
   FlashSst26 flashSst26(PIN_FLASH_SLAVE_SELECT, SPI_FREQUENCY);
-
-  //open: generic message handler to avoid PrintSerialFlashSst26 object
-  //flashSst26.readId();
-  //flashSst26.readUniqueId();
 
   //prepare circuit to load firmware
   loadInit();
@@ -301,6 +308,17 @@ void reset(unsigned char resetPin)
   delayMicroseconds(DURATION_RESET);
 }
 
+//Power Down
+void powerDown(bool enable, unsigned char resetPin)
+{
+  if (enable)
+    digitalWrite(resetPin, LOW);
+  else
+    digitalWrite(resetPin, HIGH);
+  delayMicroseconds(DURATION_RESET);
+}
+
+
 //Read ststus register
 statusRegister_t readStatusRegister()
 {
@@ -354,9 +372,11 @@ void writePropertyValueList(unsigned short propertyValueList[][2], unsigned char
 }
 
 //0x00 RD_REPLY Read answer of device
-statusRegister_t readReply(unsigned char reply[], unsigned long len)
+bool readReply(unsigned char reply[], unsigned long len)
 {
-  statusRegister_t statusRegister;
+  //result of reading
+  bool readResult = false;
+
   //CMD
   unsigned char cmd[1] = {READ_REPLY};
 
@@ -368,41 +388,44 @@ statusRegister_t readReply(unsigned char reply[], unsigned long len)
 
     ///wait for device - to be improved
     delayMicroseconds(DURATION_REPLY);
-
+    delayMicroseconds(DURATION_REPLY);
+    
     writeCommandArgument(cmd, sizeof(cmd), reply, len);
 
-    statusRegister.cts       = reply[0] >> 7 & 1;
-    statusRegister.cmdErr    = reply[0] >> 6 & 1;
-    statusRegister.dacqInt   = reply[0] >> 5 & 1;
-    statusRegister.dsrvInt   = reply[0] >> 4 & 1;
-    statusRegister.stcInt    = reply[0] & 1;
-    statusRegister.eventInt  = reply[1] >> 5 & 1;
-    statusRegister.state     = reply[3] >> 6 & 3;
-    statusRegister.rfFeErr   = reply[3] >> 5 & 1;
-    statusRegister.dspErr    = reply[3] >> 4 & 1;
-    statusRegister.repOfErr  = reply[3] >> 3 & 1;
-    statusRegister.cmdOfErr  = reply[3] >> 2 & 1;
-    statusRegister.arbErr    = reply[3] >> 1 & 1;
-    statusRegister.nonRecErr = reply[3] & 1;
-
     //Clear to send and no error then break loop
-    if ((statusRegister.cts == 1) && ((statusRegister.cmdErr & 1) == 0))
+    if ((((reply[0] >> 7) & 1) == 1) && (((reply[0] >> 6) & 1) == 0))
     {
-      statusRegister.cmdErrCode = 0;
-      return statusRegister;
+      readResult = true;
+      break;
     }
-    //error or too many reads
-    else if ((statusRegister.cmdErr == 1) || (retry == MAX_RETRY - 1))
+    //error
+    else if ((reply[0] >> 6 & 1) == 1)
     {
       //if cmdErr read byte 5 of reply
       unsigned char errBuf[5] = {0xff, 0xff, 0xff, 0xff, 0xff};
       writeCommandArgument(cmd, sizeof(cmd), errBuf, sizeof(errBuf));
       serialPrintSi468x::printResponseHex(errBuf, sizeof(errBuf));
-      statusRegister.cmdErrCode = errBuf[4];
-      return statusRegister;
+      //statusRegister.cmdErrCode = errBuf[4];
+      readResult = false;
+      break;
+    }
+
+    //too many reads
+    else if (retry == MAX_RETRY - 1)
+    {
+      readResult = false;
+      break;
+    }
+
+    else
+    {
+      readResult = false;
     }
   }
+
+  return readResult;
 }
+
 
 //0x01 POWER_UP Power-up the device and set system settings
 void powerUp(powerUpArguments_t powerUpArguments)
@@ -567,7 +590,7 @@ void readPowerUpArguments(powerUpArguments_t &powerUpArguments)
 }
 
 //0x10 READ_OFFSET Reads a portion of the response buffer (not the status)from an offset
-statusRegister_t readReplyOffset(unsigned char reply[], unsigned short len, unsigned short offset)
+bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset)
 {
   /*
     0x10 READ_OFFSET is used for applications that cannot read the entire response buffer. This type of application can
@@ -582,9 +605,10 @@ statusRegister_t readReplyOffset(unsigned char reply[], unsigned short len, unsi
     single interrupt occurs if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
   */
 
-  statusRegister_t statusRegister;
+  bool readResult = false;
 
-  uint8_t cmd[4] = {
+  uint8_t cmd[4] =
+  {
     READ_OFFSET,
     0,
     (uint8_t)(offset & 0xff),
@@ -598,54 +622,51 @@ statusRegister_t readReplyOffset(unsigned char reply[], unsigned short len, unsi
   //retry until maxRetry
   for (uint8_t retry = 0; retry < MAX_RETRY; retry++)
   {
-    //wait for device - to be improved
-    delayMicroseconds(10000);
-    delayMicroseconds(10000);
+    ///wait for device - to be improved
+    delayMicroseconds(DURATION_REPLY_OFFSET);
+    delayMicroseconds(DURATION_REPLY_OFFSET);
 
     //initalize reply to 0xff
     for (uint8_t i = 0; i < len; i++) reply[i] = 0xff;
 
     writeCommandArgument(cmd2, sizeof(cmd2), reply, len);
 
-    statusRegister.cts      = (reply[0] >> 7) & 1;
-    statusRegister.cmdErr   = (reply[0] >> 6) & 1;
-    statusRegister.dacqInt  = reply[0] >> 5 & 1;
-    statusRegister.dsrvInt  = reply[0] >> 4 & 1;
-    statusRegister.stcInt   = reply[0] & 1;
-    statusRegister.eventInt = reply[1] >> 5 & 1;
-    statusRegister.state    = reply[3] >> 6 & 3;
-    statusRegister.rfFeErr  = reply[3] >> 5 & 1;
-    statusRegister.dspErr   = reply[3] >> 4 & 1;
-    statusRegister.repOfErr = reply[3] >> 3 & 1;
-    statusRegister.cmdOfErr = reply[3] >> 2 & 1;
-    statusRegister.arbErr   = reply[3] >> 1 & 1;
-    statusRegister.nonRecErr = reply[3] & 1;
-
-    //serialPrintSi468x::printResponseHex(reply, len);
-
     //Clear to send and no error then break loop
-    if ((statusRegister.cts == 1) && (statusRegister.cmdErr == 0))
+    if ((((reply[0] >> 7) & 1) == 1) && (((reply[0] >> 6) & 1) == 0))
     {
-      return statusRegister;
+      readResult = true;
+      //break loop
+      break;
     }
 
-    //error or too many reads
-    else if ((statusRegister.cmdErr) == 1 )
+    //error
+    else if (((reply[0] >> 6) & 1) == 1 )
     {
       //if cmdErr read byte 5 of reply
       unsigned char errBuf[5] = {0xff, 0xff, 0xff, 0xff, 0xff};
       writeCommandArgument(cmd, sizeof(cmd), errBuf, sizeof(errBuf));
       serialPrintSi468x::printResponseHex(errBuf, sizeof(errBuf));
-      statusRegister.cmdErrCode = errBuf[4];
-      return statusRegister;
+
+      readResult = false;
+      //break loop
+      break;
     }
 
-    //error or too many reads
+    //too many reads
     else if (retry == MAX_RETRY - 1)
     {
-      return statusRegister;
+      readResult = false;
+      //break loop
+      break;
+    }
+
+    else
+    {
+      readResult = false;
     }
   }
+
+  return readResult;
 }
 
 //0x12 GET_FUNC_INFO Get Firmware Information
@@ -708,6 +729,7 @@ unsigned short readPropertyValue(unsigned short id)
   cmd[3] = id >> 8 & 0xff;
 
   writeCommand(cmd, sizeof(cmd));
+  delayMicroseconds(DURATION_PROPERTY);
   delayMicroseconds(DURATION_PROPERTY);
   delayMicroseconds(DURATION_PROPERTY);
   readReply(buf, sizeof(buf));
@@ -987,7 +1009,7 @@ void dabBegin()
   //writeTextField(dabServiceInformation.serviceLabel);
 }
 
-void startService(unsigned long &serviceId, unsigned long &componentId, const unsigned char serviceType)
+void startService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
   unsigned char cmd[1];
   unsigned char arg[11];
@@ -1012,7 +1034,7 @@ void startService(unsigned long &serviceId, unsigned long &componentId, const un
   readReply(buf, sizeof(buf));
 }
 
-void stopService(unsigned long &serviceId, unsigned long &componentId, const unsigned char serviceType)
+void stopService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
   unsigned char cmd[1];
   unsigned char arg[11];
@@ -1148,7 +1170,7 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
     char dls[serviceData.dataLength];
     memcpy(dls, &payloadBuffer[26], serviceData.dataLength); // Bytes 26...dataLength
     /*label terminated by '/0'*/
-    //dabEnsembleInfo.ensembleLabel[serviceData.dataLength+1] = '\0';
+    //dabEnsembleInfo.label[serviceData.dataLength+1] = '\0';
 
     serialPrintSi468x::dabPrintDynamicLabelSegment(dls);
   }
@@ -1186,8 +1208,6 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
 //Get ensemble header
 void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceType)
 {
-  //ensemble list availabel ?
-  eventInformation_t eventInformation = readEventInformation();
 
   uint8_t cmd[2];
   cmd[0] = GET_DIGITAL_SERVICE_LIST;
@@ -1428,7 +1448,7 @@ void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
 
 #ifdef DEBUG_PARSE_ENSEMBLE
     Serial.println(F("Delete serviceList"));
-#endif DEBUG_PARSE_ENSEMBLE
+#endif //DEBUG_PARSE_ENSEMBLE
 
     //start with first service in list
     for (uint8_t i = 0; i < ensembleHeader.numServices; i++)
@@ -1438,7 +1458,7 @@ void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
 #ifdef DEBUG_PARSE_ENSEMBLE
         Serial.print(F("Delete component:\t"));
         Serial.println(i);
-#endif DEBUG_PARSE_ENSEMBLE
+#endif //DEBUG_PARSE_ENSEMBLE
         //clear memory from componentList
         free(ensembleHeader.serviceList[i].componentList);
         //Set pointer in component list to nullptr
@@ -1456,7 +1476,7 @@ void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
   Serial.print(F("Free RAM:\t"));
   Serial.println(freeRam());
   Serial.println();
-#endif DEBUG_PARSE_ENSEMBLE
+#endif //DEBUG_PARSE_ENSEMBLE
 }
 
 //Search service and component in servicelist
@@ -1487,7 +1507,7 @@ bool searchService(unsigned long &serviceId, unsigned long &componentId)
       Serial.println(serviceId, HEX);
       Serial.println(ensembleHeader.actualService);
       Serial.println();
-#endif DEBUG_PARSE_ENSEMBLE
+#endif //DEBUG_PARSE_ENSEMBLE
 
       found = true;
       break;
@@ -1510,7 +1530,7 @@ bool searchService(unsigned long &serviceId, unsigned long &componentId)
       Serial.println(componentId, HEX);
       Serial.println(ensembleHeader.actualComponent);
       Serial.println();
-#endif DEBUG_PARSE_ENSEMBLE
+#endif //DEBUG_PARSE_ENSEMBLE
       found = true;
       break;
     }
@@ -1710,8 +1730,9 @@ unsigned char tuneIndex(unsigned char index, unsigned short varCap, unsigned cha
   //STC ? 600ms = 60 * 10000us
   for (uint8_t i = 0; i < 10; i++)
   {
-    for (uint8_t j = 0; j < 20; j++)
-      delayMicroseconds(DURATION_TUNE);
+    //wait 20*DURATION_TUNE
+    for (uint8_t j = 0; j < 20; j++) delayMicroseconds(DURATION_TUNE);
+
     readReply(buf, sizeof(buf));
     Serial.print('.');
     if ((buf[0] & 1) == 1)
@@ -1770,9 +1791,10 @@ rsqInformation_t readRsqInformation(unsigned char clearDigradInterrupt, unsigned
 }
 
 //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio
-eventInformation_t readEventInformation(unsigned char eventAck = 0)
+eventInformation_t readEventInformation(unsigned char eventAck)
 {
   eventInformation_t eventInformation;
+
   unsigned char cmd[1];
   unsigned char arg[1];
   unsigned char buf[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1807,28 +1829,65 @@ eventInformation_t readEventInformation(unsigned char eventAck = 0)
 //0xB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
 ensembleInformation_t readEnsembleInformation()
 {
-  ensembleInformation_t dabEnsembleInformation;
-  unsigned char cmd[1];
-  unsigned char arg[1];
-  unsigned char buf[26];
-  for (unsigned short i = 0; i < 26; i++) buf[i] = 0xff;
+  ensembleInformation_t ensembleInformation;
 
-  cmd[0] = DAB_GET_ENSEMBLE_INFO;
-  arg[0] = 0;
+  unsigned char cmd[2] = {DAB_GET_ENSEMBLE_INFO, 0};
 
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  unsigned char bufferSize = 26;
+  unsigned char buf[bufferSize];
+  for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
+
+  writeCommandArgument(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
-  dabEnsembleInformation.ensembleId        = (unsigned short)buf[5] << 8 | buf[4];
-  /*16 characters for the ensemble label terminated by '/0'*/
-  memcpy(dabEnsembleInformation.ensembleLabel, &buf[6], 16); /*buf[6]....buf[21]*/
-  dabEnsembleInformation.ensembleLabel[16] = '\0';
-  dabEnsembleInformation.ecc               = buf[22];
-  dabEnsembleInformation.charSet           = buf[23];
-  dabEnsembleInformation.abbreviationMask  = (unsigned short)buf[25] << 8 | buf[24];
+  ensembleInformation.ensembleId        = (unsigned short)buf[5] << 8 | buf[4];
+  //16 characters for the ensemble label terminated by '/0'
+  memcpy(ensembleInformation.label, &buf[6], 16); //buf[6]....buf[21]
+  ensembleInformation.label[16] = '\0';
+  ensembleInformation.ecc               = buf[22];
+  ensembleInformation.charSet           = buf[23];
+  ensembleInformation.abbreviationMask  = (unsigned short)buf[25] << 8 | buf[24];
 
-  return dabEnsembleInformation;
+  return ensembleInformation;
+}
+
+//0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
+serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId)
+{
+
+  serviceLinkingInformation_t serviceLinkingInformation = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  unsigned char cmd[8];
+  cmd[0] = DAB_GET_SERVICE_LINKING_INFO;
+  cmd[1] = 0;//arg
+  cmd[2] = 0;//arg
+  cmd[3] = 0;//0x00
+  cmd[4] = serviceId & 0xFF;//serviceId
+  cmd[5] = serviceId >> 8 & 0xFF;//serviceId
+  cmd[6] = serviceId >> 16 & 0xFF;//serviceId
+  cmd[7] = serviceId >> 24 & 0xFF;//serviceId
+
+  unsigned char bufferSize = 11;
+  unsigned char buf[bufferSize];
+  for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
+
+  writeCommandArgument(cmd, sizeof(cmd));
+  delayMicroseconds(10000);
+  readReply(buf, sizeof(buf));
+
+  serialPrintSi468x::printResponseHex(buf, sizeof(buf));
+
+  serviceLinkingInformation.size                = (unsigned short) buf[5] << 8 | buf[4];
+  serviceLinkingInformation.numLinkSets         = buf[6];
+  serviceLinkingInformation.lsn                 = (unsigned short) buf[9] << 8 | buf[8];
+  serviceLinkingInformation.activeFlag          = buf[10] >> 7;
+  serviceLinkingInformation.shortHandFlag       = (buf[10] >> 6) & 1;
+  serviceLinkingInformation.linkType            = (buf[10] >> 4) & 0x3;
+  serviceLinkingInformation.hardLinkFlag        = (buf[10] >> 1) & 1;
+  serviceLinkingInformation.internationalFlag   = buf[10] & 1;
+
+  return serviceLinkingInformation;
 }
 
 //0xB8 DAB_SET_FREQ_LIST Set Frequency table
@@ -1930,8 +1989,10 @@ unsigned long* readFrequencyTable()
 void readComponentInformation(componentInformation_t &componentInformation, unsigned long &serviceId, unsigned long &componentId)
 {
 
-  delete [] componentInformation.userAppData;  // When done, free memory
-  componentInformation.userAppData = nullptr;
+  //User application information provides signalling to allow data applications to be associated with the correct user
+  //application decoder by the receiver.ETSI EN 300 401 V1.4.1 clause 8.1.20, Figure 68.
+
+  delete[] componentInformation.userAppData;  // When done, free memory
 
   componentInformation.globalId             = 0;
   componentInformation.language             = 0;
@@ -1997,6 +2058,7 @@ void readComponentInformation(componentInformation_t &componentInformation, unsi
 
   // Allocate n unsigned chars and save ptr in a
   componentInformation.userAppData = new unsigned char[componentInformation.lenField];
+
   //check if success
   if (componentInformation.userAppData == nullptr)
   {
@@ -2026,7 +2088,6 @@ void readComponentInformation(componentInformation_t &componentInformation, unsi
   {
     componentInformation.userAppData[j] = appDataBuffer[j + 4];
   }
-
 
   Serial.print(F("RAM: "));
   Serial.println(getFreeRam());
@@ -2063,6 +2124,7 @@ timeDab_t readDateTime(unsigned char timeType)
   return dabTime;
 }
 
+//0xBD DAB_GET_AUDIO_INFO Gets audio information
 audioInformation_t readAudioInformation()
 {
 
@@ -2092,13 +2154,14 @@ audioInformation_t readAudioInformation()
   return audioInformation;
 }
 
+//0xBE DAB_GET_SUBCHAN_INFO Get technical information about the component
 componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long &serviceId, unsigned long &componentId)
 {
-  
+
   componentTechnicalInformation_t componentTechnicalInformation;
-  
+
   unsigned char cmd[12];
-  
+
   cmd[0] = DAB_GET_SUBCHAN_INFO;
   cmd[1] = 0x00;
   cmd[2] = 0x00;
@@ -2111,7 +2174,7 @@ componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long 
   cmd[9] = componentId >> 8 & 0xFF;
   cmd[10] = componentId >> 16 & 0xFF;
   cmd[11] = componentId >> 24 & 0xFF;
-    
+
   unsigned char buf[12];
   //initalize buffer
   for (unsigned short i = 0; i < 12; i++) buf[i] = 0xff;
@@ -2152,21 +2215,26 @@ unsigned long readFrequencyInformationList()
 
   unsigned char cmd[2] = {DAB_GET_FREQ_INFO, 0};
 
-  unsigned char buf[20];
+  unsigned char bufferSize = 20;
+  unsigned char buf[bufferSize];
   //initalize buffer
-  for (unsigned short i = 0; i < 20; i++) buf[i] = 0xff;
+  for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
+  serialPrintSi468x::printResponseHex(buf, sizeof(buf));
+
   return (unsigned long)buf[7] << 24 | (unsigned long)buf[7] << 16 | (unsigned long)buf[7] << 8 | buf[4];
 }
 
+//0xC0 DAB_GET_SERVICE_INFO Get digital service information
 serviceInformation_t readServiceInformation(unsigned long &serviceId)
 {
-  serviceInformation_t dabServiceInformation;
+  serviceInformation_t serviceInformation;
+
   unsigned char cmd[1] = {DAB_GET_SERVICE_INFO};
   unsigned char arg[7];
   unsigned char buf[26];
@@ -2187,26 +2255,26 @@ serviceInformation_t readServiceInformation(unsigned long &serviceId)
   readReply(buf, sizeof(buf));
 
   //serviceInfo1
-  dabServiceInformation.serviceLinkingInfoFlag = buf[4] >> 6 & 1;
-  dabServiceInformation.pType                  = buf[4] >> 1 & 0x1F;
-  dabServiceInformation.pdFlag                 = buf[4] & 1;
+  serviceInformation.serviceLinkingInfoFlag = buf[4] >> 6 & 1;
+  serviceInformation.pType                  = buf[4] >> 1 & 0x1F;
+  serviceInformation.pdFlag                 = buf[4] & 1;
 
   //serviceInfo2
-  dabServiceInformation.localFlag              = buf[5] >> 7 & 1;
-  dabServiceInformation.caId                   = buf[5] >> 4 & 0x7;
-  dabServiceInformation.numComponents          = buf[5] & 0xF;
+  serviceInformation.localFlag              = buf[5] >> 7 & 1;
+  serviceInformation.caId                   = buf[5] >> 4 & 0x7;
+  serviceInformation.numComponents          = buf[5] & 0xF;
 
   //serviceInfo3
-  dabServiceInformation.characterSet           = buf[6] & 0xF;
-  dabServiceInformation.ecc                    = buf[7];
+  serviceInformation.characterSet           = buf[6] & 0xF;
+  serviceInformation.ecc                    = buf[7];
 
   //Service Label
-  memcpy(dabServiceInformation.serviceLabel, &buf[8], 16); // Bytes 16...36
-  dabServiceInformation.serviceLabel[16] = '\0';
+  memcpy(serviceInformation.serviceLabel, &buf[8], 16); // Bytes 16...36
+  serviceInformation.serviceLabel[16] = '\0';
 
-  dabServiceInformation.abbreviationMask       = (unsigned short) buf[25] << 8 | buf[24];
+  serviceInformation.abbreviationMask       = (unsigned short) buf[25] << 8 | buf[24];
 
-  return dabServiceInformation;
+  return serviceInformation;
 }
 
 
@@ -2292,7 +2360,7 @@ void tune(unsigned char &dabIndex, bool up)
 
   //read result
   rsqInformation = readRsqInformation();
-  
+
   dabIndex = rsqInformation.index;
 }
 
@@ -2388,8 +2456,10 @@ unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection, 
     //Serial.print(F("Rssi Avgerage: "));
     Serial.print(varCap);
     Serial.print(",");
-    Serial.println(rssi / 256.00);
-    //Serial.println();
+    
+    //Serial.println(rssi / 256.00);
+    rssi = rssi >> 7;//shift 2^7
+    Serial.println(rssi);
 
   }
 

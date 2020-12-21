@@ -8,7 +8,7 @@ class TactileSwitch
 {
   public:
     /*constructor with pin, number, internal resistor, mode: high or low driver side */
-    TactileSwitch(uint8_t buttonPin, uint8_t number, uint8_t mode = HIGH, bool enablePullUp = false);
+    TactileSwitch(uint8_t buttonPin, uint8_t number, bool mode = HIGH, bool enablePullUp = false);
     
     /*user defined actions*/
     enum action {BTN_NO_ACTION, BTN_PUSH, BTN_DBL_PUSH, BTN_HOLD, BTN_HOLD_LONG, BTN_ERROR};
@@ -34,7 +34,7 @@ class TactileSwitch
    
     uint8_t _number;//Unique number
     uint8_t _buttonPin;   //Pin
-    uint8_t _mode;        //HIGH side or LOW side button
+    bool _mode;        //HIGH side or LOW side button
     bool _enablePullUp;   //Enable internal 20k resistor
     
     int32_t _timePressedDown;    //time the button was pressed down
@@ -58,4 +58,3 @@ class TactileSwitch
 };
 
 #endif /*TACTILE_SWITCH_H*/
-

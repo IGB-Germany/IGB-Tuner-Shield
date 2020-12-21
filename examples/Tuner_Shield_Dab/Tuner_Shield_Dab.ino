@@ -17,23 +17,24 @@
 /*Driver for SI468x Tuner*/
 #include "SI468x.h"
 
-/*Button application*/
-#define BUTTON
-#ifdef BUTTON
+//TACTILE_SWITCH application
+#define TACTILE_SWITCH
+#ifdef TACTILE_SWITCH
 #include "buttonApplication.h"
 #endif
 
-/*To use serial monitor output*/
+//To use serial monitor output application
 #define SERIAL_MONITOR
 #ifdef SERIAL_MONITOR
 #include "dabMenuSerial.h"
-#endif/*SERIAL_MONITOR*/
+#endif//SERIAL_MONITOR
 
 
 void setup()
 {
   Serial.begin(9600);
   while (!Serial); // Wait until Serial is ready
+
 
   //Run all setup functions
   deviceBegin();
@@ -43,14 +44,14 @@ void setup()
 
 void loop()
 {
-#ifdef BUTTON
-  /*Call application*/
+#ifdef TACTILE_SWITCH
+  //Call application
   callTactileSwitches();
-#endif/*BUTTON*/
+#endif//TACTILE_SWITCH
 
 #ifdef SERIAL_MONITOR
-  /*Call application*/
+  //Call application
   callSerialMonitorApplication();
-#endif /*SERIAL_MONITOR*/
+#endif //SERIAL_MONITOR
 
 } //loop
