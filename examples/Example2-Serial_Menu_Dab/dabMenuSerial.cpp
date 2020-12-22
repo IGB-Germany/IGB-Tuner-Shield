@@ -7,6 +7,9 @@
 //Serial
 #include "Arduino.h"
 
+//firmware
+#include "firmware.h"
+
 /*Serial Monitor Print Functions*/
 #include "printSerial.h"
 
@@ -535,15 +538,77 @@ void menuScanFrequency(char ch)
   //Scan Index Up
   else if (ch == 'd')
   {
-    scan(dabIndex, true);
-    Serial.println(dabIndex);
+    //remember start index
+    rsqInformation_t rsqInformation = readRsqInformation();
+    unsigned char indexStart = rsqInformation.index;
+
+    do
+    {
+      //tune index up
+      tune(dabIndex, true);
+
+      //get receive quality
+      rsqInformation = readRsqInformation();
+      Serial.print(F("Index:\t"));
+      Serial.println(rsqInformation.index);
+
+      //DAB found and valid if threshold for dab detected and greater than 4
+      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
+      {
+        Serial.println(F("Valid index found"));
+        dabIndex = rsqInformation.index;
+        Serial.println(dabIndex);
+        break;
+      }
+      //around
+      else if (rsqInformation.index == indexStart)
+      {
+        Serial.println(F("Nothing found"));
+        //nothing found
+        dabIndex = rsqInformation.index;
+        Serial.println(dabIndex);
+        break;
+      }
+    }
+    while (rsqInformation.index != indexStart);
   }
 
   //Scan Index Down
   else if (ch == 'a')
   {
-    scan(dabIndex, false);
-    Serial.println(dabIndex);
+    //remember start index
+    rsqInformation_t rsqInformation = readRsqInformation();
+    unsigned char indexStart = rsqInformation.index;
+
+    do
+    {
+      //tune index down
+      tune(dabIndex, false);
+
+      //get receive quality
+      rsqInformation = readRsqInformation();
+      Serial.print(F("Index:\t"));
+      Serial.println(rsqInformation.index);
+
+      //DAB found and valid if threshold for dab detected and greater than 4
+      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
+      {
+        Serial.println(F("Valid index found"));
+        dabIndex = rsqInformation.index;
+        Serial.println(dabIndex);
+        break;
+      }
+      //around
+      else if (rsqInformation.index == indexStart)
+      {
+        Serial.println(F("Nothing found"));
+        //nothing found
+        dabIndex = rsqInformation.index;
+        Serial.println(dabIndex);
+        break;
+      }
+    }
+    while (rsqInformation.index != indexStart);
   }
 
   //Bandscan
@@ -658,8 +723,27 @@ void menuDevice(char ch)
   //power up
   else if (ch == 'u')
   {
-
     powerDown(false);
+  }
+
+  //boot
+  else if (ch == '6')
+  {
+    initalize();
+    reset();
+    powerUp(powerUpArguments);
+    loadFirmware(addrBootloaderPatchFull, sizeBootloaderPatchFull); //FullPatch
+    loadFirmware(addrFirmwareDab, sizeFirmwareDab);//DAB Firmware
+    boot();
+    serialPrintSi468x::printSystemState(readSystemState());
+    //Set device properties
+    writePropertyValueList(propertyValueListDevice, NUM_PROPERTIES_DEVICE);
+    //Set DAB properties
+    writePropertyValueList(propertyValueListDab, NUM_PROPERTIES_DAB);
+    //Tunes DAB inital index
+    tuneIndex(dabIndex);
+    //Starts inital audio service
+    startService(serviceId, componentId);
   }
 
   else

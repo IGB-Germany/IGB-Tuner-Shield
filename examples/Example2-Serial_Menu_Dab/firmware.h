@@ -48,7 +48,8 @@ enum firmware_t
   checkSumFirmwareAm          = 0x59A7,
   crc32FirmwareAm             = 0x375e4a88,
 
-  ADDRESS_TEXT                = 0x001D0000,//Customer Specific Data: 32 rows, 32 columns * 100 pages = 102400 = 0x00019000 Bytes
+  ADDRESS_TEXT                = 0x001D0000,//Customer Specific Data: 32 rows, 32 columns * 100 pages = 102400 = 0x00019000 Bytes; 
+  
 };
 
 //Mini Patch Bootloader

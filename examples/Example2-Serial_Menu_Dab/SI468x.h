@@ -46,6 +46,7 @@
   use onboard flash/firmware location for different data like favorites, properties, program type - open
   componentInformation_t userAppData - open
   New: Create class - open
+  New: program types string in flash memory - open
   
   Changed: printSerial functions get struct parameters per reference to save memory - done
   Changed: readReply() and readReplyOffset() now returns true if correct read and not statusRegister_t - done
@@ -210,7 +211,6 @@ void writeCommandArgument(unsigned char cmd[], unsigned long lenCmd, unsigned ch
 //Write command
 void writeCommand(unsigned char cmd[], unsigned long lenCmd);
 
-
 //Run setup functions before firmware
 void deviceBegin();
 //Read status register
@@ -236,7 +236,6 @@ unsigned char readMute();
 //Volume
 unsigned char volumeUp();
 unsigned char volumeDown();
-
 
 //Component list type 4 Byte
 struct componentList_t
@@ -570,8 +569,6 @@ void startFirstService(unsigned long &serviceId, unsigned long &componentId, uns
 //Scan all indices of frequency table
 bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTable);
 
-//Scan next valid frequency
-void scan(unsigned char &dabIndex, bool up = true);
 //Tune up = true/down = false
 void tune(unsigned char &dabIndex, bool up = true);
 

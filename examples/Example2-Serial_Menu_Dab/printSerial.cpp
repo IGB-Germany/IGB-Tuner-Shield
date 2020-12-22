@@ -464,7 +464,7 @@ void dabPrintDigitalServiceInformation(serviceInformation_t& dabServiceInfo)
   Serial.println(dabServiceInfo.numComponents);
   Serial.print(F("Char. Set:\t\t0b"));
   Serial.println(dabServiceInfo.characterSet, BIN);
-  Serial.print(F("Extended Country Code ECC:\t"));
+  Serial.print(F("Extended Country Code:\t"));
   Serial.println(dabServiceInfo.ecc);
   Serial.print(F("Abbreviation Mask:\t0b"));
   Serial.println(dabServiceInfo.abbreviationMask, BIN);
@@ -739,6 +739,7 @@ void dabPrintMenuDevice()
   Serial.println(F("p: Properties"));
   Serial.println(F("d: Power Down"));
   Serial.println(F("u: Power Up"));
+  Serial.println(F("6: Boot DAB"));
   Serial.println();
 }
 

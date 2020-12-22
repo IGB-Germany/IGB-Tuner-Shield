@@ -4,17 +4,11 @@
 //Print detailed info about Ensemble
 #define DEBUG_DAB_PARSE_ENSEMBLE
 
-//Calculate available free RAM
-#include "RamTesting.h"
-#define DEBUG_FREE_RAM
-
-/*to test for error handling*/
-#include "errno.h"
 
 //Driver for tuner circuit SI468x by IGB
 #include "SI468x.h"
 
-/*firmware*/
+//firmware
 #include "firmware.h"
 
 //SPI communication layer
@@ -162,22 +156,7 @@ void deviceBegin()
   statusRegister = readStatusRegister();
   serialPrintSi468x::printStatusRegister(statusRegister);
 
-  loadFirmware(addrFirmwareDab, sizeFirmwareDab);//DAB Firmware
 
-  //Print device status information
-  //serialPrintSi468x::devicePrintStatus(deviceGetStatus());
-  //Boot device
-  boot();
-
-  statusRegister = readStatusRegister();
-  //Print device status information
-  serialPrintSi468x::printStatusRegister(statusRegister);
-
-  //Set device properties
-  writePropertyValueList(propertyValueListDevice, NUM_PROPERTIES_DEVICE);
-
-  //Print system state
-  serialPrintSi468x::printSystemState(readSystemState());
 }
 
 //Loads data from Flash Memory into host and than into device
@@ -347,7 +326,12 @@ statusRegister_t readStatusRegister()
 
 unsigned short getFreeRam()
 {
-  return freeRam();
+  extern unsigned int __heap_start;
+  extern unsigned int *__brkval;
+  //test variable created on stack
+  unsigned int newVariable = 0;
+  
+  return (unsigned int) &newVariable - (__brkval == 0 ? (unsigned int) &__heap_start : (unsigned int) __brkval);
 }
 
 //Read properties and return a pointer to a 2dim list of id and value
@@ -549,7 +533,7 @@ partInfo_t readPartInfo()
 //0x09 GET_SYS_STATE reports basic system state information such as which mode is active; FM, DAB, etc.
 unsigned char readSystemState()
 {
-  unsigned char systemState;
+  unsigned char systemState = 0xff;
 
   unsigned char cmd[2];
 
@@ -570,9 +554,10 @@ unsigned char readSystemState()
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
 void readPowerUpArguments(powerUpArguments_t &powerUpArguments)
 {
-  unsigned char cmd[2];
+ 
   unsigned char buf[18] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[2];
   cmd[0] = GET_POWER_UP_ARGS;
   cmd[1] = 0;
 
@@ -673,9 +658,9 @@ bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset)
 firmwareInformation_t readFirmwareInformation()
 {
   firmwareInformation_t deviceFirmwareInfo = {0, 0, 0, 0, 0, 0, 0, 0};
-  unsigned char cmd[2];
   unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[2];
   cmd[0] = GET_FUNC_INFO;
   cmd[1] = 0;
 
@@ -698,10 +683,9 @@ firmwareInformation_t readFirmwareInformation()
 //0x13 SET_PROPERTY Sets the value of a property
 void writePropertyValue(unsigned short id, unsigned short value)
 {
-  unsigned char cmd[6];
-
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[6];
   cmd[0] = SET_PROPERTY;
   cmd[1] = 0x00;
   cmd[2] = id & 0xff;
@@ -717,12 +701,11 @@ void writePropertyValue(unsigned short id, unsigned short value)
 //0x14 GET_PROPERTY Retrieve the value of a property
 unsigned short readPropertyValue(unsigned short id)
 {
-  unsigned char cmd[4];
-
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   unsigned short propertyValue = 0xffff;
-
+  
+  unsigned char cmd[4];
   cmd[0] = GET_PROPERTY;
   cmd[1] = 1;//count = 1
   cmd[2] = id & 0xff;
@@ -748,9 +731,10 @@ void writeStorage(unsigned char data[], unsigned char len, unsigned short offset
     The ERR bit (and optional interrupt) is set if an invalid argument is sent. Note that only a single interrupt occurs if
     both the CTS and ERR bits are set. The command may only be sent in powerup mode.
   */
-  unsigned char cmd[8];
-  unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
+  unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
+  
+  unsigned char cmd[8];
   cmd[0] = WRITE_STORAGE; //CMD
   cmd[1] = 0;             //0x00
   cmd[2] = offset & 0xff; //ARG2 OFFSET[7:0]
@@ -769,7 +753,6 @@ void writeStorage(unsigned char data[], unsigned char len, unsigned short offset
 void readStorage(unsigned char data[], unsigned char len, unsigned short offset)
 {
   unsigned char cmd[4];
-
   cmd[0] = READ_STORAGE;
   cmd[1] = 0;
   cmd[2] = offset & 0xff;//ARG2 OFFSET[7:0]
@@ -784,11 +767,10 @@ void readStorage(unsigned char data[], unsigned char len, unsigned short offset)
 unsigned short readRssi()
 {
   unsigned short rssi = 0;
-
-  unsigned char cmd[2];
-
+  
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[2];
   cmd[0] = TEST_GET_RSSI;
   cmd[1] = 0;
 
@@ -859,7 +841,6 @@ unsigned char* dabValidIndexList = nullptr;
 //Number of valid indices
 unsigned char dabNumValidIndex = 0;
 
-
 //Actual index
 //unsigned char dabIndex = 2;//CHAN_5C = 178352;//DR Deutschland
 unsigned char dabIndex = 25; //CHAN_11A = 216928;//SWR RP
@@ -875,7 +856,6 @@ unsigned char dabIndex = 25; //CHAN_11A = 216928;//SWR RP
 //SWR3
 unsigned long serviceId = 0xD3A3;
 unsigned long componentId = 0x4;
-
 
 //property value list DAB
 unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2] =
@@ -996,6 +976,24 @@ unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2] =
 
 void dabBegin()
 {
+  loadFirmware(addrFirmwareDab, sizeFirmwareDab);//DAB Firmware
+
+  //Print device status information
+  //serialPrintSi468x::devicePrintStatus(deviceGetStatus());
+  //Boot device
+  boot();
+
+  statusRegister_t statusRegister = readStatusRegister();
+  //Print device status information
+  serialPrintSi468x::printStatusRegister(statusRegister);
+
+  //Set device properties
+  writePropertyValueList(propertyValueListDevice, NUM_PROPERTIES_DEVICE);
+
+  //Print system state
+  serialPrintSi468x::printSystemState(readSystemState());
+  
+  
   //Set DAB properties
   writePropertyValueList(propertyValueListDab, NUM_PROPERTIES_DAB);
 
@@ -1009,14 +1007,15 @@ void dabBegin()
   //writeTextField(dabServiceInformation.serviceLabel);
 }
 
+//0x81
 void startService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
-  unsigned char cmd[1];
-  unsigned char arg[11];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[1];
   cmd[0] = START_DIGITAL_SERVICE;
-
+  
+  unsigned char arg[11];
   arg[0] = serviceType & 1;
   arg[1] = 0x00;
   arg[2] = 0x00;
@@ -1030,18 +1029,18 @@ void startService(const unsigned long &serviceId, const unsigned long &component
   arg[10] = componentId >> 24 & 0xFF;
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-  delayMicroseconds(DURATION_STOP_START_SERVICE);
+   for (uint8_t j = 0; j < 10; j++) delayMicroseconds(DURATION_STOP_START_SERVICE);
   readReply(buf, sizeof(buf));
 }
 
 void stopService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
-  unsigned char cmd[1];
-  unsigned char arg[11];
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[1];
   cmd[0] = STOP_DIGITAL_SERVICE;
-
+  
+  unsigned char arg[11];
   arg[0] = serviceType & 1;
   arg[1] = 0x00;
   arg[2] = 0x00;
@@ -1080,19 +1079,18 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
   serviceData_t serviceData = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, nullptr};
 
   //read statusRegister to analyze dsrvINT
-  //if DSRVINT go on
+  //if DSRVINT == 0 return else go on
   statusRegister_t statusRegister = readStatusRegister();
   if (statusRegister.dsrvInt == 0)
   {
     return serviceData;
   }
 
-  unsigned char cmd[2];
-
   unsigned char buf[24];
   //initalize
   for (unsigned short i = 0; i < 24; i++) buf[i] = 0xff;
-
+  
+  unsigned char cmd[2];
   cmd[0]  = GET_DIGITAL_SERVICE_DATA;
   cmd[1] = ((statusOnly  & 1 ) << 4) | (ack & 1);
 
@@ -1208,7 +1206,6 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
 //Get ensemble header
 void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceType)
 {
-
   uint8_t cmd[2];
   cmd[0] = GET_DIGITAL_SERVICE_LIST;
   cmd[1] = serviceType & 1;
@@ -1218,6 +1215,7 @@ void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceTy
   //+4 bytes first component
   //uint16_t len = 12 + 24 + 4 + 24 + 4;
   uint16_t len = 12 + 24 + 4;
+  
   uint8_t buf[len];
   for (uint8_t i = 0; i < len; i++) buf[i] = 0xff;
 
@@ -1712,13 +1710,13 @@ unsigned char tuneIndex(unsigned char index, unsigned short varCap, unsigned cha
   */
   //Validity index 0...47
   if (index >= MAX_INDEX) index = MAX_INDEX - 1;
-
-  unsigned char cmd[1];
-  unsigned char arg[5];
+  
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-
+  
+  unsigned char cmd[1];
   cmd[0] = DAB_TUNE_FREQ;
-
+  
+  unsigned char arg[5];
   arg[0] = injection & 3;
   arg[1] = index;
   arg[2] = 0;
@@ -1730,13 +1728,14 @@ unsigned char tuneIndex(unsigned char index, unsigned short varCap, unsigned cha
   //STC ? 600ms = 60 * 10000us
   for (uint8_t i = 0; i < 10; i++)
   {
-    //wait 20*DURATION_TUNE
-    for (uint8_t j = 0; j < 20; j++) delayMicroseconds(DURATION_TUNE);
+    //wait 30*DURATION_TUNE
+    for (uint8_t j = 0; j < 30; j++) delayMicroseconds(DURATION_TUNE);
 
     readReply(buf, sizeof(buf));
     Serial.print('.');
     if ((buf[0] & 1) == 1)
     {
+      for (uint8_t j = 0; j < 30; j++) delayMicroseconds(DURATION_TUNE);
       break;
     }
   }
@@ -2383,40 +2382,6 @@ unsigned char readNumberFrequencies()
   return numberFrequencies;
 }
 
-//Scan next valid frequency
-void scan(unsigned char &dabIndex, bool up)
-{
-  //remember start index
-  rsqInformation_t rsqInformation = readRsqInformation();
-  unsigned char indexStart = rsqInformation.index;
-
-  do
-  {
-    //tune index
-    if (up) tune(dabIndex, true);
-    else(tune(dabIndex, false));
-
-    //get receive quality
-    rsqInformation = readRsqInformation();
-    Serial.print(F("Index:\t"));
-    Serial.println(rsqInformation.index);
-
-    //DAB found and valid if threshold for dab detected and greater than 4
-    if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
-    {
-      //nothing found
-      Serial.println(F("Valid index found"));
-      dabIndex = rsqInformation.index;
-      return;
-    }
-  }
-  //around
-  while (rsqInformation.index != indexStart);
-  Serial.println(F("Nothing found"));
-  //nothing found
-  dabIndex = rsqInformation.index;
-  return;
-}
 
 //Test varactor tuning capacitor
 unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection, unsigned char numberMeasurments)
