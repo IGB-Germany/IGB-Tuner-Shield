@@ -21,8 +21,8 @@
 
   Memory needs
   UNO
-  ROM:  30180 Bytes (93%)
-  RAM:    874 Bytes (42%)
+  ROM:  29886 Bytes (92%)
+  RAM:    851 Bytes (41%)
 
   Files
   properties.h - needed for tuner circuit
@@ -33,21 +33,23 @@
 /*
   Changelog
 
-  Changed: use paramaters per reference& in functions to save memory - open
+  Changed: use parameters per reference& in functions to save memory - open
   Changed: use write/read and get/set in function names - open
   Changed: uint8_t etc. datatypes - open
   New: create namespaces like driverSi468x to avoid conflicts - open
   loadFirmware generic message handler to avoid PrintSerialFlashSst26 object - open
   loadFirmware works only with 0x100 because of flash (pagewise)- open
   readStorage() handle first 4 bytes of answer - open
-  readServiceInformation() delayMicroseconds tbd - open
-  readFrequencyInformationList()- open
-  use interrupt or delayMicroseconds in functions - open
-  use onboard flash/firmware location for different data like favorites, properties, program type - open
-  componentInformation_t userAppData - open
+
+  Changed: readServiceInformation() delayMicroseconds tbd - open
+  New: readFrequencyInformationTable()- open
+  Changed: use interrupt not delayMicroseconds in functions - open
+  New: componentInformation_t userAppData - open
   New: Create class - open
-  New: program types string in flash memory - open
-  
+  New: use onboard flash for program types string - open
+  New: use onboard flash/firmware location for different data like favorites, properties, program type - open
+  New: linkageSegmentTable_t* linkageSegmentTable;//Table of linkage segments - open
+
   Changed: printSerial functions get struct parameters per reference to save memory - done
   Changed: readReply() and readReplyOffset() now returns true if correct read and not statusRegister_t - done
   Changed: replace delay by delayMicroseconds with for() loop - done
@@ -92,7 +94,8 @@ enum durationsDevice_t
   DURATION_REPLY_OFFSET = 10000,//
   DURATION_LOAD_INIT    = 4000,//4ms see flowchart; ?ms see timing
   DURATION_BOOT         = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
-  DURATION_PROPERTY     = 10000//write / read PropertyValue
+  DURATION_PROPERTY     = 10000,//write / read PropertyValue
+  DURATION_10000_ms     = 10000
 };
 
 //Status register 22 Bits, 3 Bytes
@@ -214,28 +217,18 @@ void writeCommand(unsigned char cmd[], unsigned long lenCmd);
 //Run setup functions before firmware
 void deviceBegin();
 //Read status register
-statusRegister_t readStatusRegister();
+void readStatusRegister(statusRegister_t& statusRegister);
 //Initalize pins
 void initalize();
 //Reset
 void reset(unsigned char resetPin = PIN_DEVICE_RESET);
 //Power Down
 void powerDown(bool enable, unsigned char resetPin = PIN_DEVICE_RESET);
-
 //Load Firmware from flash memory to device
 void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware);
-//Get free RAM
-unsigned short getFreeRam();
 
-//Mute
-//0,1,2,3; No, Left, Rright, Both, default No
-void writeMute(unsigned char channelMuted = 0);
-//Get status of mute
-unsigned char readMute();
 
-//Volume
-unsigned char volumeUp();
-unsigned char volumeDown();
+//DAB data types
 
 //Component list type 4 Byte
 struct componentList_t
@@ -481,7 +474,23 @@ struct serviceLinkingInformation_t
   unsigned char linkType            : 2; //Indicates the link type for all links in linkage set segment 0.
   unsigned char hardLinkFlag        : 1; //Indicates if the links in linkage set segment 0 are soft or hard links.
   unsigned char internationalFlag   : 1; //Indicates if the links in linkage set segment 0 are national or international.
-  linkageSegmentTable_t linkageSegmentTable[];//Table of linkage segments
+  linkageSegmentTable_t* linkageSegmentTable;//Table of linkage segments
+};
+
+struct frequencyInformationTable_t
+{
+  unsigned long id;
+  unsigned long frequency;
+  unsigned char index;
+  unsigned char rnm;
+  unsigned char continuityFlag;
+  unsigned char controlField;
+};
+
+struct frequencyInformationTableHeader_t
+{
+  unsigned short len;
+  frequencyInformationTable_t* frequencyInformationTable;
 };
 
 //DAB specific delay times
@@ -511,6 +520,8 @@ void setCallback(void (*ServiceData)(void));
 void eventHandler(void);
 
 
+//Global variables
+
 //Actual Digital Service
 extern unsigned long serviceId;
 //Actual Digital Component
@@ -534,37 +545,31 @@ extern long unsigned* frequencyTable;
 
 //0xB9 DAB_GET_FREQ_LIST Get frequency table
 unsigned long* readFrequencyTable();
-//Read number of frequencies
-unsigned char readNumberFrequencies();
 
 //Property value list DAB
 extern unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2];
 
-
-//DAB functions
-
-//Constructor
-void dabBegin();
-
-
 //Ensemble dynamic allocation
 extern struct ensembleHeader_t ensembleHeader;
+
+//DAB functions
+//Constructor
+void dabBegin();
 //Get ensemble header
-void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceType = 0);
+void getEnsembleHeader(ensembleHeader_t& ensembleHeader, unsigned char serviceType = 0);
 //Get ensemble an fill serviceList and componentList
-void getEnsemble(ensembleHeader_t &ensembleHeader, unsigned char serviceType = 0);
+void getEnsemble(ensembleHeader_t& ensembleHeader, unsigned char serviceType = 0);
 //Free memory from Ensemble List Data Structure
 void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader);
 
 //Start next service in ensemble
-unsigned char nextService(unsigned long &serviceId, unsigned long &componentId);
+void nextService(unsigned long &serviceId, unsigned long &componentId);
 //Start previous service in ensemble
-unsigned char previousService(unsigned long &serviceId, unsigned long &componentId);
+void previousService(unsigned long &serviceId, unsigned long &componentId);
 //Search _serviceId and _componentId in ensemble and save in actualService, if found returns true
 bool searchService(unsigned long &serviceId, unsigned long &componentId);
-//Start first serviceType (0 = audio) in ensemble
+//Start first serviceType (0 = audio, 1 = data) in ensemble
 void startFirstService(unsigned long &serviceId, unsigned long &componentId, unsigned char serviceType = 0);
-
 
 //Scan all indices of frequency table
 bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTable);
@@ -577,39 +582,37 @@ unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection =
 
 
 //0x81 START_DIGITAL_SERVICE Starts an audio or data service
-void startService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType = 0);
+void startService(const unsigned long& serviceId, const unsigned long& componentId, const unsigned char serviceType = 0);
 //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service
-void stopService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType = 0);
-//0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services*/
-serviceData_t readServiceData(unsigned char statusOnly = 1, unsigned char ack = 0);
+void stopService(const unsigned long& serviceId, const unsigned long& componentId, const unsigned char serviceType = 0);
+//0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services
+void readServiceData(serviceData_t& serviceData, unsigned char statusOnly = 1, unsigned char ack = 0);
 //0xB0 Tunes to frequency index
-unsigned char tuneIndex(unsigned char index, unsigned short varCap = 0, unsigned char injection = 0);
+void tuneIndex(unsigned char index, unsigned short varCap = 0, unsigned char injection = 0);
 //0xB2 DAB_DIGRAD_STATUS Get status information about the received signal quality
-rsqInformation_t readRsqInformation(unsigned char clearDigradInterrupt = 0, unsigned char rssiAtTune = 0, unsigned char clearStcInterrupt = 0);
+void readRsqInformation(rsqInformation_t& rsqInformation, unsigned char clearDigradInterrupt = 0, unsigned char rssiAtTune = 0, unsigned char clearStcInterrupt = 0);
 //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio
-eventInformation_t readEventInformation(unsigned char eventAck = 0);
+void readEventInformation(eventInformation_t& eventInformation, unsigned char eventAck = 0);
 //0xB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
-ensembleInformation_t readEnsembleInformation();
+void readEnsembleInformation(ensembleInformation_t& ensembleInformation);
+//0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
+void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformation, unsigned long &serviceId);
 //0xB8 DAB_SET_FREQ_LIST Set frequency table
 void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
-
+//0xB9 DAB_GET_FREQ_LIST Read number of indices
+void readNumberFrequencies(unsigned char& numberIndices);
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
-void readComponentInformation(componentInformation_t &componentInformation, unsigned long &serviceId, unsigned long &componentId);
+void readComponentInformation(componentInformation_t& componentInformation, unsigned long &serviceId, unsigned long &componentId);
 //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset (0) or the UTC (1)
-timeDab_t readDateTime(unsigned char timeType = 1);
+void readDateTime(timeDab_t& timeDab, unsigned char timeType = 1);
 //0xBD DAB_GET_AUDIO_INFO Gets audio information
-audioInformation_t readAudioInformation();
+void readAudioInformation(audioInformation_t& audioInformation);
 //0xBE DAB_GET_SUBCHAN_INFO Get technical information about the component
-componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long &serviceId, unsigned long &componentId);
-//0xC0 DAB_GET_SERVICE_INFO Get digital service information
-serviceInformation_t readServiceInformation(unsigned long &serviceId);
+void readComponentTechnicalInformation(componentTechnicalInformation_t& componentTechnicalInformation, unsigned long &serviceId, unsigned long &componentId);
 //0xBF DAB_GET_FREQ_INFO Gets ensemble frequency information list
-unsigned long readFrequencyInformationList();
-
-//to do
-//0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
-serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId);
-
+void readFrequencyInformationTable(frequencyInformationTableHeader_t& frequencyInformationTableHeader);
+//0xC0 DAB_GET_SERVICE_INFO Get digital service information
+void readServiceInformation(serviceInformation_t& serviceInformation, unsigned long &serviceId);
 
 //Tuner commands
 enum COMMANDS_DEVICE

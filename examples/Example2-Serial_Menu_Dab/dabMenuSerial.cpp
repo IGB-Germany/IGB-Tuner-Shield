@@ -33,24 +33,24 @@ void callSerialMonitorApplication()
   //Received signal quality
   if (ch == 'q')
   {
-    rsqInformation_t rsqInformation = readRsqInformation();
-    //Print status information about the received signal quality
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
     serialPrintSi468x::dabPrintRsqStatus(rsqInformation);
   }
   //Ensemble info
   else if (ch == 'e')
   {
-    ensembleInformation_t ensembleInformation = readEnsembleInformation();
+    ensembleInformation_t ensembleInformation;
+    readEnsembleInformation(ensembleInformation);
     serialPrintSi468x::dabPrintEnsembleInformation(ensembleInformation);
   }
 
   //Service info
   else if (ch == 'r')
   {
-    serviceInformation_t dabServiceInfo = readServiceInformation(serviceId);
-
-    //Digital service information
-    serialPrintSi468x::dabPrintDigitalServiceInformation(dabServiceInfo);
+    serviceInformation_t serviceInformation;
+    readServiceInformation(serviceInformation, serviceId);
+    serialPrintSi468x::dabPrintDigitalServiceInformation(serviceInformation);
   }
 
   //Free Ram
@@ -59,6 +59,24 @@ void callSerialMonitorApplication()
     Serial.print(F("Free RAM:\t"));
     Serial.println(getFreeRam());
     Serial.println();
+  }
+
+  //next service
+  else if (ch == 'd')
+  {
+    nextService(serviceId, componentId);
+    serviceInformation_t serviceInformation;
+    readServiceInformation(serviceInformation, serviceId);
+    Serial.println(serviceInformation.serviceLabel);
+  }
+
+  //previous service
+  else if (ch == 'a')
+  {
+    previousService(serviceId, componentId);
+    serviceInformation_t serviceInformation;
+    readServiceInformation(serviceInformation, serviceId);
+    Serial.println(serviceInformation.serviceLabel);
   }
 
   //Mute and Unmute
@@ -132,34 +150,19 @@ void menuMain(char ch)
   //Check DAB service data
   else if (ch == 'c')
   {
-    serviceData_t dabServiceData = readServiceData();
-    //Prints service data
-    serialPrintSi468x::dabPrintServiceData(dabServiceData);
+    serviceData_t serviceData;
+    readServiceData(serviceData);
+    serialPrintSi468x::dabPrintServiceData(serviceData);
   }
 
   //Get DAB service data
   else if (ch == 'v')
   {
-    serviceData_t dabServiceData = readServiceData(0, 1);
-    //Prints service data
-    serialPrintSi468x::dabPrintServiceData(dabServiceData);
+    serviceData_t serviceData;
+    readServiceData(serviceData, 0, 1);
+    serialPrintSi468x::dabPrintServiceData(serviceData);
   }
 
-  //next service
-  else if (ch == 'd')
-  {
-    nextService(serviceId, componentId);
-    serviceInformation_t serviceInformation = readServiceInformation(serviceId);
-    Serial.println(serviceInformation.serviceLabel);
-  }
-
-  //previous service
-  else if (ch == 'a')
-  {
-    previousService(serviceId, componentId);
-    serviceInformation_t serviceInformation = readServiceInformation(serviceId);
-    Serial.println(serviceInformation.serviceLabel);
-  }
 
   //Start dedicated service in ensemble
   else if (ch == '1')
@@ -181,13 +184,12 @@ void menuMain(char ch)
   //Start dedicated service in ensemble
   else if (ch == '2')
   {
-    //CHAN_5C=178352
-    //DR Deutschland
-    dabIndex = 2;
+    //ANTENNE DE
+    dabIndex = 17;
 
-    //Radio Bob 0x15DD, 0x16
-    serviceId = 0x15DD;
-    componentId = 0x16;
+    //TOGGO 0x15DD, 0x16
+    serviceId = 0x1298;
+    componentId = 0x05;
 
     //Tunes DAB index
     tuneIndex(dabIndex);
@@ -255,7 +257,8 @@ void menuMain(char ch)
   else if (ch == 't')
   {
     //Get status information about the received signal quality
-    rsqInformation_t rsqInformation = readRsqInformation();
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
 
     serialPrintSi468x::dabPrintIndex(rsqInformation.index);
     serialPrintSi468x::dabPrintFrequency(rsqInformation.frequency);
@@ -283,8 +286,10 @@ void menuScanEnsemble(char ch)
   //Get ensemble header
   else if (ch == 'h')
   {
-    //ensemble list availabel ?
-    eventInformation_t eventInformation = readEventInformation();
+    //ensemble list available ?
+    eventInformation_t eventInformation;
+    readEventInformation(eventInformation);
+
     if (eventInformation.serviceListAvailable == 1)
     {
       getEnsembleHeader(ensembleHeader);
@@ -300,7 +305,8 @@ void menuScanEnsemble(char ch)
   else if (ch == 'p')
   {
     //ensemble list available ?
-    eventInformation_t eventInformation = readEventInformation();
+    eventInformation_t eventInformation;
+    readEventInformation(eventInformation);
 
     if (eventInformation.serviceListAvailable == 1)
     {
@@ -317,18 +323,6 @@ void menuScanEnsemble(char ch)
   else if (ch == '0')
   {
     startFirstService(serviceId, componentId);
-  }
-
-  //next service
-  else if (ch == 'd')
-  {
-    nextService(serviceId, componentId);
-  }
-
-  //previous service
-  else if (ch == 'a')
-  {
-    previousService(serviceId, componentId);
   }
 
   //Check DAB service data
@@ -362,29 +356,33 @@ void menuTechnical(char ch)
   //Gets event information about the various events related to the DAB radio
   else if (ch == 'v')
   {
-    eventInformation_t eventInformation = readEventInformation();
+    eventInformation_t eventInformation;
+    readEventInformation(eventInformation);
     serialPrintSi468x::dabPrintEventInformation(eventInformation);
   }
 
   //Get audio information
   else if (ch == 'a')
   {
-    audioInformation_t audioInformation = readAudioInformation();
+    audioInformation_t audioInformation;
+    readAudioInformation(audioInformation);
     serialPrintSi468x::dabPrintComponentAudioInfo(audioInformation);
   }
 
   //Get and print technical information
   else if (ch == 'x')
   {
-    componentTechnicalInformation_t componentTechnicalInformation = readComponentTechnicalInformation(serviceId, componentId);
+    componentTechnicalInformation_t componentTechnicalInformation;
+    readComponentTechnicalInformation(componentTechnicalInformation, serviceId, componentId);
     //Print technical information about the component
     serialPrintSi468x::dabPrintComponentTechnicalInformation(componentTechnicalInformation);
   }
 
   //Get and print date and time
-  else if (ch == 'd')
+  else if (ch == '#')
   {
-    timeDab_t dabTime = readDateTime();
+    timeDab_t dabTime;
+    readDateTime(dabTime);
     //Print local date and time or UTC
     serialPrintSi468x::dabPrintDateTimeInformation(dabTime);
   }
@@ -397,18 +395,23 @@ void menuTechnical(char ch)
     readComponentInformation(componentInformation, serviceId, componentId);
     //Print information about the component
     serialPrintSi468x::printComponentInformation(componentInformation);
-
+    Serial.print(F("RAM: "));
+    Serial.println(getFreeRam());
+    Serial.println();
   }
 
   //Print DAB frequency information list
   else if (ch == 'i')
   {
     //check events
-    eventInformation_t eventInformation = readEventInformation();
+    eventInformation_t eventInformation;
+    readEventInformation(eventInformation);
 
+    //serviceLinkingInformation
     if (eventInformation.serviceLinkingInterrupt == 1)
     {
-      serviceLinkingInformation_t serviceLinkingInformation = readServiceLinkingInfo(serviceId);
+      serviceLinkingInformation_t serviceLinkingInformation;
+      readServiceLinkingInfo(serviceLinkingInformation, serviceId);
       serialPrintSi468x::printServiceLinkingInformation(serviceLinkingInformation);
     }
     else
@@ -416,9 +419,17 @@ void menuTechnical(char ch)
       serialPrintSi468x::printError(3);
     }
 
+    //readFrequencyInformationTable
     if (eventInformation.frequencyInterrupt == 1)
     {
-      readFrequencyInformationList();
+      frequencyInformationTableHeader_t frequencyInformationTableHeader;
+      readFrequencyInformationTable(frequencyInformationTableHeader);
+      Serial.print(F("RAM: "));
+      Serial.println(getFreeRam());
+      Serial.println();
+      
+      serialPrintSi468x::printFrequencyInformation(frequencyInformationTableHeader);
+
     }
     else
     {
@@ -487,8 +498,11 @@ void menuScanFrequency(char ch)
   //Get Frequency Table
   else if (ch == 'f')
   {
+    uint8_t numberIndices;
+    readNumberFrequencies(numberIndices);
+
     //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), readNumberFrequencies());
+    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
   }
 
   //Set Frequency Table
@@ -496,9 +510,14 @@ void menuScanFrequency(char ch)
   {
     //Set the frequency table
     writeFrequencyTable(frequencyTableDefault, 41);
+    Serial.print(F("RAM: "));
+    Serial.println(getFreeRam());
+    Serial.println();
 
+    uint8_t numberIndices;
+    readNumberFrequencies(numberIndices);
     //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), readNumberFrequencies());
+    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
   }
 
   //Set Frequency Table
@@ -507,8 +526,14 @@ void menuScanFrequency(char ch)
     //Set the frequency table
     writeFrequencyTable(frequencyTableRheinlandPfalz, 2);
 
+    Serial.print(F("RAM: "));
+    Serial.println(getFreeRam());
+    Serial.println();
+
+    uint8_t numberIndices;
+    readNumberFrequencies(numberIndices);
     //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), readNumberFrequencies());
+    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
   }
 
   //Set Frequency Table
@@ -517,29 +542,36 @@ void menuScanFrequency(char ch)
     //Set the frequency table
     writeFrequencyTable(frequencyTableItalienRas, 5);
 
+    Serial.print(F("RAM: "));
+    Serial.println(getFreeRam());
+    Serial.println();
+
+    uint8_t numberIndices;
+    readNumberFrequencies(numberIndices);
     //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), readNumberFrequencies());
+    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
   }
 
-  //Tune index Up
-  else if (ch == 'u')
+  //index Up
+  else if (ch == 'l')
   {
     tune(dabIndex, true);
     Serial.println(dabIndex);
   }
 
-  //Tune index down
-  else if (ch == 'z')
+  //index down
+  else if (ch == 'k')
   {
     tune(dabIndex, false);
     Serial.println(dabIndex);
   }
 
   //Scan Index Up
-  else if (ch == 'd')
+  else if (ch == '.')
   {
     //remember start index
-    rsqInformation_t rsqInformation = readRsqInformation();
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
     unsigned char indexStart = rsqInformation.index;
 
     do
@@ -548,7 +580,7 @@ void menuScanFrequency(char ch)
       tune(dabIndex, true);
 
       //get receive quality
-      rsqInformation = readRsqInformation();
+      readRsqInformation(rsqInformation);
       Serial.print(F("Index:\t"));
       Serial.println(rsqInformation.index);
 
@@ -574,10 +606,11 @@ void menuScanFrequency(char ch)
   }
 
   //Scan Index Down
-  else if (ch == 'a')
+  else if (ch == ',')
   {
     //remember start index
-    rsqInformation_t rsqInformation = readRsqInformation();
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
     unsigned char indexStart = rsqInformation.index;
 
     do
@@ -586,7 +619,7 @@ void menuScanFrequency(char ch)
       tune(dabIndex, false);
 
       //get receive quality
-      rsqInformation = readRsqInformation();
+      readRsqInformation(rsqInformation);
       Serial.print(F("Index:\t"));
       Serial.println(rsqInformation.index);
 
@@ -678,7 +711,8 @@ void menuDevice(char ch)
   //Print device status information
   else if (ch == 's')
   {
-    statusRegister_t statusRegister = readStatusRegister();
+    statusRegister_t statusRegister;
+    readStatusRegister(statusRegister);
     serialPrintSi468x::printStatusRegister(statusRegister);
   }
 
@@ -716,6 +750,7 @@ void menuDevice(char ch)
   }
 
   //power down
+  /*
   else if (ch == 'd')
   {
     powerDown(true);
@@ -725,6 +760,7 @@ void menuDevice(char ch)
   {
     powerDown(false);
   }
+*/
 
   //boot
   else if (ch == '6')
@@ -750,4 +786,59 @@ void menuDevice(char ch)
   {
     //nothing
   };
+}
+
+unsigned short getFreeRam()
+{
+  extern unsigned int __heap_start;
+  extern unsigned int *__brkval;
+  //test variable created on stack
+  unsigned int newVariable = 0;
+
+  return (unsigned int) &newVariable - (__brkval == 0 ? (unsigned int) &__heap_start : (unsigned int) __brkval);
+}
+
+//Get status of mute
+unsigned char readMute()
+{
+  unsigned char channelMuted = 0;
+  channelMuted = readPropertyValue(AUDIO_MUTE);
+  return channelMuted;
+}
+
+//Controls the audio mute on each audio output
+void writeMute(unsigned char channelMuted)
+{
+  //  0 : Do not mute audio outputs
+  //  1 : Mute Left Audio Out.
+  //  2 : Mute Right Audio Out.
+  //  3 : Mute both Left and Right Audio Out
+  //Range ok ?
+  if (channelMuted > 3) channelMuted = 0;
+
+  writePropertyValue(AUDIO_MUTE, channelMuted);
+}
+
+unsigned char volumeUp()
+{
+  unsigned char volume = readPropertyValue(AUDIO_ANALOG_VOLUME);
+
+  //volume 0...63;
+  if (volume < 63) volume ++;
+  else volume = 63;
+
+  writePropertyValue(AUDIO_ANALOG_VOLUME, volume);
+  return volume;
+}
+
+unsigned char volumeDown()
+{
+  unsigned char volume = readPropertyValue(AUDIO_ANALOG_VOLUME);
+
+  //volume 0...63;
+  if (volume > 0) volume --;
+  else volume = 0;
+
+  writePropertyValue(AUDIO_ANALOG_VOLUME, volume);
+  return volume;
 }

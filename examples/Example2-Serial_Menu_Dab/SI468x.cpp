@@ -138,7 +138,7 @@ unsigned short propertyValueListDevice[NUM_PROPERTIES_DEVICE][2] =
 void deviceBegin()
 {
   statusRegister_t statusRegister;
-  
+
   //SW version
   serialPrintSi468x::printVersion(version);
 
@@ -153,9 +153,8 @@ void deviceBegin()
 
   loadFirmware(addrBootloaderPatchFull, sizeBootloaderPatchFull); //FullPatch
 
-  statusRegister = readStatusRegister();
+  readStatusRegister(statusRegister);
   serialPrintSi468x::printStatusRegister(statusRegister);
-
 
 }
 
@@ -299,10 +298,8 @@ void powerDown(bool enable, unsigned char resetPin)
 
 
 //Read ststus register
-statusRegister_t readStatusRegister()
+void readStatusRegister(statusRegister_t& statusRegister)
 {
-  statusRegister_t statusRegister;
-
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
 
   readReply(buf, sizeof(buf));
@@ -320,19 +317,8 @@ statusRegister_t readStatusRegister()
   statusRegister.cmdOfErr  = buf[3] >> 2 & 1;
   statusRegister.arbErr    = buf[3] >> 1 & 1;
   statusRegister.nonRecErr = buf[3] & 1;
-
-  return statusRegister;
 }
 
-unsigned short getFreeRam()
-{
-  extern unsigned int __heap_start;
-  extern unsigned int *__brkval;
-  //test variable created on stack
-  unsigned int newVariable = 0;
-  
-  return (unsigned int) &newVariable - (__brkval == 0 ? (unsigned int) &__heap_start : (unsigned int) __brkval);
-}
 
 //Read properties and return a pointer to a 2dim list of id and value
 unsigned short (*readPropertyValueList(unsigned short propertyValueList[][2], unsigned char numberProperties))[2]
@@ -373,7 +359,7 @@ bool readReply(unsigned char reply[], unsigned long len)
     ///wait for device - to be improved
     delayMicroseconds(DURATION_REPLY);
     delayMicroseconds(DURATION_REPLY);
-    
+
     writeCommandArgument(cmd, sizeof(cmd), reply, len);
 
     //Clear to send and no error then break loop
@@ -554,9 +540,9 @@ unsigned char readSystemState()
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
 void readPowerUpArguments(powerUpArguments_t &powerUpArguments)
 {
- 
+
   unsigned char buf[18] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[2];
   cmd[0] = GET_POWER_UP_ARGS;
   cmd[1] = 0;
@@ -602,7 +588,7 @@ bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset)
 
   uint8_t cmd2[1] = {READ_REPLY};
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
 
   //retry until maxRetry
   for (uint8_t retry = 0; retry < MAX_RETRY; retry++)
@@ -659,7 +645,7 @@ firmwareInformation_t readFirmwareInformation()
 {
   firmwareInformation_t deviceFirmwareInfo = {0, 0, 0, 0, 0, 0, 0, 0};
   unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[2];
   cmd[0] = GET_FUNC_INFO;
   cmd[1] = 0;
@@ -684,7 +670,7 @@ firmwareInformation_t readFirmwareInformation()
 void writePropertyValue(unsigned short id, unsigned short value)
 {
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[6];
   cmd[0] = SET_PROPERTY;
   cmd[1] = 0x00;
@@ -704,7 +690,7 @@ unsigned short readPropertyValue(unsigned short id)
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   unsigned short propertyValue = 0xffff;
-  
+
   unsigned char cmd[4];
   cmd[0] = GET_PROPERTY;
   cmd[1] = 1;//count = 1
@@ -733,7 +719,7 @@ void writeStorage(unsigned char data[], unsigned char len, unsigned short offset
   */
 
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[8];
   cmd[0] = WRITE_STORAGE; //CMD
   cmd[1] = 0;             //0x00
@@ -767,9 +753,9 @@ void readStorage(unsigned char data[], unsigned char len, unsigned short offset)
 unsigned short readRssi()
 {
   unsigned short rssi = 0;
-  
+
   unsigned char buf[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[2];
   cmd[0] = TEST_GET_RSSI;
   cmd[1] = 0;
@@ -783,50 +769,9 @@ unsigned short readRssi()
   return rssi;
 }
 
-//Controls the audio mute on each audio output
-void writeMute(unsigned char channelMuted)
-{
-  //  0 : Do not mute audio outputs
-  //  1 : Mute Left Audio Out.
-  //  2 : Mute Right Audio Out.
-  //  3 : Mute both Left and Right Audio Out
-  //Range ok ?
-  if (channelMuted > 3) channelMuted = 0;
 
-  writePropertyValue(AUDIO_MUTE, channelMuted);
-}
 
-//Get status of mute
-unsigned char readMute()
-{
-  unsigned char channelMuted = 0;
-  channelMuted = readPropertyValue(AUDIO_MUTE);
-  return channelMuted;
-}
 
-unsigned char volumeUp()
-{
-  unsigned char volume = readPropertyValue(AUDIO_ANALOG_VOLUME);
-
-  //volume 0...63;
-  if (volume < 63) volume ++;
-  else volume = 63;
-
-  writePropertyValue(AUDIO_ANALOG_VOLUME, volume);
-  return volume;
-}
-
-unsigned char volumeDown()
-{
-  unsigned char volume = readPropertyValue(AUDIO_ANALOG_VOLUME);
-
-  //volume 0...63;
-  if (volume > 0) volume --;
-  else volume = 0;
-
-  writePropertyValue(AUDIO_ANALOG_VOLUME, volume);
-  return volume;
-}
 
 //Global variables DAB definitions
 
@@ -983,7 +928,9 @@ void dabBegin()
   //Boot device
   boot();
 
-  statusRegister_t statusRegister = readStatusRegister();
+  statusRegister_t statusRegister;
+  readStatusRegister(statusRegister);
+
   //Print device status information
   serialPrintSi468x::printStatusRegister(statusRegister);
 
@@ -992,8 +939,8 @@ void dabBegin()
 
   //Print system state
   serialPrintSi468x::printSystemState(readSystemState());
-  
-  
+
+
   //Set DAB properties
   writePropertyValueList(propertyValueListDab, NUM_PROPERTIES_DAB);
 
@@ -1001,8 +948,7 @@ void dabBegin()
   tuneIndex(dabIndex);
   //Starts inital audio service
   startService(serviceId, componentId);
-  //Get information of the digital ensemble
-  readEnsembleInformation();
+
   //readServiceInformation(dabServiceInformation, serviceId);
   //writeTextField(dabServiceInformation.serviceLabel);
 }
@@ -1011,10 +957,10 @@ void dabBegin()
 void startService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[1];
   cmd[0] = START_DIGITAL_SERVICE;
-  
+
   unsigned char arg[11];
   arg[0] = serviceType & 1;
   arg[1] = 0x00;
@@ -1029,17 +975,17 @@ void startService(const unsigned long &serviceId, const unsigned long &component
   arg[10] = componentId >> 24 & 0xFF;
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-   for (uint8_t j = 0; j < 10; j++) delayMicroseconds(DURATION_STOP_START_SERVICE);
+  for (uint8_t j = 0; j < 10; j++) delayMicroseconds(DURATION_STOP_START_SERVICE);
   readReply(buf, sizeof(buf));
 }
 
 void stopService(const unsigned long &serviceId, const unsigned long &componentId, const unsigned char serviceType)
 {
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-  
+
   unsigned char cmd[1];
   cmd[0] = STOP_DIGITAL_SERVICE;
-  
+
   unsigned char arg[11];
   arg[0] = serviceType & 1;
   arg[1] = 0x00;
@@ -1059,7 +1005,7 @@ void stopService(const unsigned long &serviceId, const unsigned long &componentI
 }
 
 //0x84 GET_DIGITAL_SERVICE_DATA Gets a block of data associated with one of the enabled data components of a digital services*/
-serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
+void readServiceData(serviceData_t& serviceData, unsigned char statusOnly, unsigned char ack)
 {
   /*
     GET_DIGITAL_SERVICE_DATA gets a block of data associated with one of the enabled data components of a
@@ -1076,25 +1022,25 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
     Maximum DSRV queue depth on the Si468x is 8
   */
 
-  serviceData_t serviceData = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, nullptr};
-
   //read statusRegister to analyze dsrvINT
   //if DSRVINT == 0 return else go on
-  statusRegister_t statusRegister = readStatusRegister();
+  statusRegister_t statusRegister;
+  readStatusRegister(statusRegister);
+
   if (statusRegister.dsrvInt == 0)
   {
-    return serviceData;
+    return;
   }
 
   unsigned char buf[24];
   //initalize
   for (unsigned short i = 0; i < 24; i++) buf[i] = 0xff;
-  
+
   unsigned char cmd[2];
   cmd[0]  = GET_DIGITAL_SERVICE_DATA;
   cmd[1] = ((statusOnly  & 1 ) << 4) | (ack & 1);
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
 
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
@@ -1116,7 +1062,7 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
   //nothing in buffer, length = 0, No DLS or DLS+
   if (serviceData.bufferCount == 0 || serviceData.dataLength == 0)
   {
-    return serviceData;
+    return;
   }
   //No DLS or DLS+
   //if (serviceData.dataSource != 2) return serviceData;
@@ -1200,7 +1146,6 @@ serviceData_t readServiceData(unsigned char statusOnly, unsigned char ack)
     31 Not used
   */
 
-  return serviceData;
 }
 
 //Get ensemble header
@@ -1215,11 +1160,11 @@ void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceTy
   //+4 bytes first component
   //uint16_t len = 12 + 24 + 4 + 24 + 4;
   uint16_t len = 12 + 24 + 4;
-  
+
   uint8_t buf[len];
   for (uint8_t i = 0; i < len; i++) buf[i] = 0xff;
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
@@ -1247,7 +1192,7 @@ void getEnsembleHeader(ensembleHeader_t &ensembleHeader, unsigned char serviceTy
 }
 
 //Get ensemble an fill serviceList and componentList
-void getEnsemble(ensembleHeader_t &ensembleHeader, uint8_t serviceType)
+void getEnsemble(ensembleHeader_t& ensembleHeader, uint8_t serviceType)
 {
   //free memory from previous Ensemble List Data Structure
   freeMemoryFromEnsembleList(ensembleHeader);
@@ -1258,40 +1203,19 @@ void getEnsemble(ensembleHeader_t &ensembleHeader, uint8_t serviceType)
   //Check services
   if (ensembleHeader.numServices == 0 )
   {
-#ifdef DEBUG_PARSE_ENSEMBLE
     Serial.print(F("No services"));
-#endif
     return;
   }
 
-  //Set pointer to a new first serviceList and allocate memory
-  ensembleHeader.serviceList = (serviceList_t*) calloc (ensembleHeader.numServices, sizeof(serviceList_t));
-
-  //Realloc pointer to serviceList and create dynamic array of right size and initialize with 0
-  //ensembleHeader.serviceList = (service_t*) realloc (ensembleHeader.serviceList, ensembleHeader.numServices * sizeof(service_t));
-
-  //Debugging
-  /*
-    Serial.print(F("RAM Allocated:\t"));
-    Serial.println(ensembleHeader.numServices * sizeof(serviceList_t));
-    Serial.print(F("Services:\t"));
-    Serial.println(ensembleHeader.numServices);
-    Serial.print(F("serviceList_t:\t"));
-    Serial.println(sizeof(serviceList_t));
-    Serial.print(F("componentList_t:\t"));
-    Serial.println(sizeof(componentList_t));
-    Serial.print(F("Free RAM:\t"));
-    Serial.println(freeRam());
-    Serial.println();
-  */
+  //Create dynamic array of right size for serviceList
+  //ensembleHeader.serviceList = (serviceList_t*) calloc (ensembleHeader.numServices, sizeof(serviceList_t));
+  ensembleHeader.serviceList = new serviceList_t[ensembleHeader.numServices];
 
   //No memory left
   if (ensembleHeader.serviceList == nullptr)
   {
     freeMemoryFromEnsembleList(ensembleHeader);
-#ifdef DEBUG_PARSE_ENSEMBLE
     Serial.print(F("No memory left"));
-#endif
     return;
   }
 
@@ -1301,7 +1225,7 @@ void getEnsemble(ensembleHeader_t &ensembleHeader, uint8_t serviceType)
   cmd[0] = GET_DIGITAL_SERVICE_LIST;
   cmd[1] = serviceType & 1;
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   delayMicroseconds(10000);
 
@@ -1363,16 +1287,20 @@ void getEnsemble(ensembleHeader_t &ensembleHeader, uint8_t serviceType)
     //Terminate string
     //ensembleHeader.serviceList[i].serviceLabel[16] = '\0';
 
-    //Create dynamic array of right size and initialize with 0 for component list
-    ensembleHeader.serviceList[i].componentList = (componentList_t*) realloc(ensembleHeader.serviceList[i].componentList, ensembleHeader.serviceList[i].numComponents * sizeof(componentList_t));
+    //Create dynamic array of right size for componentList
+    //ensembleHeader.serviceList[i].componentList = (componentList_t*) realloc(ensembleHeader.serviceList[i].componentList, ensembleHeader.serviceList[i].numComponents * sizeof(componentList_t));
+    ensembleHeader.serviceList[i].componentList = new componentList_t[ensembleHeader.serviceList[i].numComponents];
 
     //No memory left
     if (ensembleHeader.serviceList[i].componentList == nullptr)
     {
-      //free memory from previous realloc
-      free(ensembleHeader.serviceList[i].componentList);
+      //free memory
+      //free(ensembleHeader.serviceList[i].componentList);
+      delete[] ensembleHeader.serviceList[i].componentList;
       //Set pointer to nullptr
       ensembleHeader.serviceList[i].componentList = nullptr;
+      Serial.print(F("No memory left"));
+      return;
     }
 
     //Components
@@ -1429,52 +1357,48 @@ void getEnsemble(ensembleHeader_t &ensembleHeader, uint8_t serviceType)
     offset = offset + (24 + ensembleHeader.serviceList[i].numComponents * 4); //4 bytes per component
   }//service cycle
 
-#ifdef DEBUG_PARSE_ENSEMBLE
-  Serial.println(F("Ensemble List created"));
-  Serial.print(F("Free RAM:\t"));
-  Serial.println(freeRam());
-  Serial.println();
-#endif
 }
 
-//Free memory from Ensemble List Data Structure
+//Free memory from ensembleList data structures
 void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
 {
-  //pointer available ?
-  if (ensembleHeader.serviceList != nullptr)
+  //ensemble empty
+  if (ensembleHeader.numServices == 0 || ensembleHeader.serviceList == nullptr)
   {
-
-#ifdef DEBUG_PARSE_ENSEMBLE
-    Serial.println(F("Delete serviceList"));
-#endif //DEBUG_PARSE_ENSEMBLE
-
-    //start with first service in list
-    for (uint8_t i = 0; i < ensembleHeader.numServices; i++)
-    {
-      if (ensembleHeader.serviceList[i].componentList != nullptr)
-      {
-#ifdef DEBUG_PARSE_ENSEMBLE
-        Serial.print(F("Delete component:\t"));
-        Serial.println(i);
-#endif //DEBUG_PARSE_ENSEMBLE
-        //clear memory from componentList
-        free(ensembleHeader.serviceList[i].componentList);
-        //Set pointer in component list to nullptr
-        ensembleHeader.serviceList[i].componentList = nullptr;
-      }
-    }
-    //clear memory from service
-    free(ensembleHeader.serviceList);
+    Serial.println(F("numServices = 0"));
+    return;
+  }
+  else
+  {
+    Serial.print(F("numServices = "));
+    Serial.println(ensembleHeader.numServices);
   }
 
+  //cycle numServices
+  for (uint8_t i = 0; i < ensembleHeader.numServices; i++)
+  {
+    //pointer to componentList is available
+    if (ensembleHeader.serviceList[i].componentList != nullptr)
+    {
+      delete[] ensembleHeader.serviceList[i].componentList;
+      Serial.print(F("Delete componentList of service:\t"));
+      Serial.println(i);
+    }
+    //componentList deleted
+    //Set pointer to component list to nullptr
+    ensembleHeader.serviceList[i].componentList = nullptr;
+  }
+  //pointer to serviceList is available
+  if (ensembleHeader.serviceList != nullptr)
+  {
+    Serial.print(F("Delete serviceList\t"));
+    delete[] ensembleHeader.serviceList;
+  }
+  //Set pointer to service list to nullptr
   ensembleHeader.serviceList = nullptr;
 
-#ifdef DEBUG_PARSE_ENSEMBLE
-  Serial.println(F("Ensemble List deleted"));
-  Serial.print(F("Free RAM:\t"));
-  Serial.println(freeRam());
+  Serial.println(F("serviceList deleted"));
   Serial.println();
-#endif //DEBUG_PARSE_ENSEMBLE
 }
 
 //Search service and component in servicelist
@@ -1538,22 +1462,23 @@ bool searchService(unsigned long &serviceId, unsigned long &componentId)
 }
 
 //Start next service in ensemble
-unsigned char nextService(unsigned long &serviceId, unsigned long &componentId)
+void nextService(unsigned long &serviceId, unsigned long &componentId)
 {
-  //in actual ensemble ?
-  bool found = false;
-
-  //no services in ensembleHeader
+  //no ensemble
   if (ensembleHeader.numServices == 0)
   {
     //parse ensemble
     getEnsemble(ensembleHeader);
     //no reception, no service list ready return
-    if (ensembleHeader.numServices == 0)  return 0;
+    if (ensembleHeader.numServices == 0)
+    {
+      Serial.println(F("No service"));
+      return;
+    }
   }
 
   //lookup in ensemble because of changed frequency
-  found = searchService(serviceId, componentId);
+  bool found = searchService(serviceId, componentId);
 
   //Found in ensemble
   if (found)
@@ -1562,63 +1487,48 @@ unsigned char nextService(unsigned long &serviceId, unsigned long &componentId)
     if (ensembleHeader.actualService == ensembleHeader.numServices - 1)
       ensembleHeader.actualService = 0;
     else  ensembleHeader.actualService++;
+
+    //global var
+    componentId = ensembleHeader.serviceList[ensembleHeader.actualService].componentList[0].componentId;
+    serviceId = ensembleHeader.serviceList[ensembleHeader.actualService].serviceId;
+
+    startService(serviceId, componentId);
   }
-  //Set to first entry
-  else
-  {
-    ensembleHeader.actualService = 0;
-  }
-
-  //global var tbi
-  componentId = ensembleHeader.serviceList[ensembleHeader.actualService].componentList[0].componentId;
-  serviceId = ensembleHeader.serviceList[ensembleHeader.actualService].serviceId;
-
-  startService(serviceId, componentId);
-
-  //return position in list
-  return ensembleHeader.actualService;
 }
 
 //Start previous service in ensemble
-unsigned char previousService(unsigned long &serviceId, unsigned long &componentId)
+void previousService(unsigned long &serviceId, unsigned long &componentId)
 {
-  //in actual ensemble ?
-  bool found = false;
-
-  //no services in ensembleHeader
+  //no ensemble
   if (ensembleHeader.numServices == 0)
   {
     //parse ensemble
     getEnsemble(ensembleHeader);
     //no reception, no service list ready return
-    if (ensembleHeader.numServices == 0)  return 0;
+    if (ensembleHeader.numServices == 0)
+    {
+      Serial.println(F("No service"));
+      return;
+    }
   }
 
   //lookup in ensemble because of changed frequency
-  found = searchService(serviceId, componentId);
-
-  //Wrap around
-  if (ensembleHeader.actualService == 0)
-    ensembleHeader.actualService = ensembleHeader.numServices;
-  else ensembleHeader.actualService--;
+  bool found = searchService(serviceId, componentId);
 
   //Found in ensemble
   if (found)
   {
-    //global var tbi
+    //Wrap around
+    if (ensembleHeader.actualService == 0)
+      ensembleHeader.actualService = ensembleHeader.numServices;
+    else ensembleHeader.actualService--;
+
+    //global var
     componentId = ensembleHeader.serviceList[ensembleHeader.actualService].componentList[0].componentId;
     serviceId = ensembleHeader.serviceList[ensembleHeader.actualService].serviceId;
-  }
-  //Set to first entry
-  else
-  {
-    ensembleHeader.actualService = 0;
-  }
 
-  startService(serviceId, componentId);
-
-  //return position in list
-  return ensembleHeader.actualService;
+    startService(serviceId, componentId);
+  }
 }
 
 //Start first service (0 = audio) in ensemble
@@ -1638,7 +1548,7 @@ void startFirstService(unsigned long &serviceId, unsigned long &componentId, uin
       delayMicroseconds(10000);
     }
 
-    eventInformation = readEventInformation();
+    readEventInformation(eventInformation);
 
     if (eventInformation.serviceListAvailable == 1)
     {
@@ -1698,32 +1608,31 @@ void startFirstService(unsigned long &serviceId, unsigned long &componentId, uin
 }
 
 //0xB0 Tunes to frequency index
-unsigned char tuneIndex(unsigned char index, unsigned short varCap, unsigned char injection)
+void tuneIndex(unsigned char index, unsigned short varCap, unsigned char injection)
 {
   /*
-    Tunes the DAB Receiver to tune to a frequency between 168.16 and 239.20 MHz defined by the frequency table
+    Tunes the DAB Receiver to a frequency between 168.16 and 239.20 MHz defined by the frequency table
     through DAB_SET_FREQ_LIST.
     INJECTION[1:0] Injection selection  0 : Automatic injection selection 1 : Low-side injection 2 : High-side injection
     FREQ_INDEX[7:0] Frequency index for the tuned frequency, see the DAB_SET_FREQ_LIST command that sets the frequency table
     ANTCAP[15:0] Antenna tuning capacitor value in 250 fF units (31.75 pF Max) Range: 0-128
     0 : Automatically determines the cap setting
   */
+
   //Validity index 0...47
   if (index >= MAX_INDEX) index = MAX_INDEX - 1;
-  
-  unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
-  
-  unsigned char cmd[1];
-  cmd[0] = DAB_TUNE_FREQ;
-  
-  unsigned char arg[5];
-  arg[0] = injection & 3;
-  arg[1] = index;
-  arg[2] = 0;
-  arg[3] = varCap & 0xFF;
-  arg[4] = varCap >> 8;
 
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
+
+  unsigned char cmd[6];
+  cmd[0] = DAB_TUNE_FREQ;
+  cmd[1] = injection & 3;
+  cmd[2] = index;
+  cmd[3] = 0;
+  cmd[4] = varCap & 0xFF;
+  cmd[5] = varCap >> 8;
+
+  writeCommand(cmd, sizeof(cmd));
 
   //STC ? 600ms = 60 * 10000us
   for (uint8_t i = 0; i < 10; i++)
@@ -1741,24 +1650,20 @@ unsigned char tuneIndex(unsigned char index, unsigned short varCap, unsigned cha
   }
   Serial.println();
 
-  return buf[0] & 1;
 }
 
 //0xB2 DAB_DIGRAD_STATUS Get status information about the received signal quality
-rsqInformation_t readRsqInformation(unsigned char clearDigradInterrupt, unsigned char rssiAtTune, unsigned char clearStcInterrupt)
+void readRsqInformation(rsqInformation_t& rsqInformation, unsigned char clearDigradInterrupt, unsigned char rssiAtTune, unsigned char clearStcInterrupt)
 {
-
-  rsqInformation_t rsqInformation;
-
-  unsigned char cmd[1] = {DAB_DIGRAD_STATUS};
-  unsigned char arg[1];
-  arg[0] = ((clearDigradInterrupt & 1) << 3) | ((rssiAtTune & 1) << 2) | (clearStcInterrupt & 1);
+  unsigned char cmd[2];
+  cmd[0] = DAB_DIGRAD_STATUS;
+  cmd[1] = ((clearDigradInterrupt & 1) << 3) | ((rssiAtTune & 1) << 2) | (clearStcInterrupt & 1);
 
   unsigned char buf[23];
   //initalize buffer
   for (unsigned char i = 0; i < 23; i++) buf[i] = 0xff;
 
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
@@ -1785,23 +1690,18 @@ rsqInformation_t readRsqInformation(unsigned char clearDigradInterrupt, unsigned
   rsqInformation.varactorCap = (unsigned short) buf[19] << 8 | buf[18];
   rsqInformation.cuLevel     = (int) buf[21] << 8 | buf[20]; // 0-470
   rsqInformation.fastDect    = buf[22];
-
-  return rsqInformation;
 }
 
 //0xB3 DAB_GET_EVENT_STATUS Gets information about the various events related to the DAB radio
-eventInformation_t readEventInformation(unsigned char eventAck)
+void readEventInformation(eventInformation_t& eventInformation, unsigned char eventAck)
 {
-  eventInformation_t eventInformation;
+  unsigned char cmd[2];
+  cmd[0] = DAB_GET_EVENT_STATUS;
+  cmd[1] = eventAck & 1;
 
-  unsigned char cmd[1];
-  unsigned char arg[1];
   unsigned char buf[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-  cmd[0] = DAB_GET_EVENT_STATUS;
-  arg[0] = eventAck & 1;
-
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
@@ -1821,22 +1721,17 @@ eventInformation_t readEventInformation(unsigned char eventAck)
   eventInformation.serviceListAvailable             = buf[5] & 1;
 
   eventInformation.currentServiceListVersion         = (unsigned short)buf[7] << 8 | buf[6];
-
-  return eventInformation;
 }
 
 //0xB4 DAB_GET_ENSEMBLE_INFO Gets information about the current ensemble
-ensembleInformation_t readEnsembleInformation()
+void readEnsembleInformation(ensembleInformation_t& ensembleInformation)
 {
-  ensembleInformation_t ensembleInformation;
-
   unsigned char cmd[2] = {DAB_GET_ENSEMBLE_INFO, 0};
 
-  unsigned char bufferSize = 26;
-  unsigned char buf[bufferSize];
-  for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
+  unsigned char buf[26];
+  for (unsigned short i = 0; i < 26; i++) buf[i] = 0xff;
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
@@ -1847,17 +1742,13 @@ ensembleInformation_t readEnsembleInformation()
   ensembleInformation.ecc               = buf[22];
   ensembleInformation.charSet           = buf[23];
   ensembleInformation.abbreviationMask  = (unsigned short)buf[25] << 8 | buf[24];
-
-  return ensembleInformation;
 }
 
 //0xB7 DAB_GET_SERVICE_LINKING_INFO Provides service linking info for the passed in service ID
-serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId)
+void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformation, unsigned long &serviceId)
 {
-
-  serviceLinkingInformation_t serviceLinkingInformation = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-
   unsigned char cmd[8];
+
   cmd[0] = DAB_GET_SERVICE_LINKING_INFO;
   cmd[1] = 0;//arg
   cmd[2] = 0;//arg
@@ -1871,7 +1762,7 @@ serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId)
   unsigned char buf[bufferSize];
   for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
@@ -1885,8 +1776,6 @@ serviceLinkingInformation_t readServiceLinkingInfo(unsigned long &serviceId)
   serviceLinkingInformation.linkType            = (buf[10] >> 4) & 0x3;
   serviceLinkingInformation.hardLinkFlag        = (buf[10] >> 1) & 1;
   serviceLinkingInformation.internationalFlag   = buf[10] & 1;
-
-  return serviceLinkingInformation;
 }
 
 //0xB8 DAB_SET_FREQ_LIST Set Frequency table
@@ -1939,15 +1828,11 @@ unsigned long* readFrequencyTable()
   }
 
   //read number of frequencies
-  unsigned char numFreq = readNumberFrequencies();
-
-#ifdef DEBUG_DAB_FREQUENCY_TABLE
-  Serial.print(F("RAM: "));
-  Serial.println(getFreeRam());
-#endif
+  unsigned char numberFrequencies;
+  readNumberFrequencies(numberFrequencies);
 
   //Dynamically allocate memory and initialize with 0
-  frequencyTable = (uint32_t*) calloc(numFreq, (sizeof(uint32_t)));
+  frequencyTable = (uint32_t*) calloc(numberFrequencies, (sizeof(uint32_t)));
 
   //Error
   if (frequencyTable == nullptr) return nullptr;
@@ -1955,7 +1840,7 @@ unsigned long* readFrequencyTable()
   uint8_t cmd[2]  = {DAB_GET_FREQ_LIST, 0};
   //4 Statusbytes + 4 Bytes from command DAB_GET_FREQ_LIST
   uint8_t freq[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
 
   //Fill index table
@@ -1964,7 +1849,7 @@ unsigned long* readFrequencyTable()
   uint16_t offset = 0;
   readReplyOffset(freq, sizeof(freq), offset);
 
-  for (uint8_t i = 0; i < numFreq; i++)
+  for (uint8_t i = 0; i < numberFrequencies; i++)
   {
     offset = offset + 4 ; //increase offset to next frequency
     readReplyOffset(freq, sizeof(freq), offset);
@@ -1975,19 +1860,13 @@ unsigned long* readFrequencyTable()
     for (uint8_t j = 0;  j < 8; j++) freq[j] = 0xff;
   }
 
-#ifdef DEBUG_DAB_FREQUENCY_TABLE
-  Serial.print(F("RAM: "));
-  Serial.println(getFreeRam());
-#endif
 
   return  frequencyTable;
 }
 
-
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
 void readComponentInformation(componentInformation_t &componentInformation, unsigned long &serviceId, unsigned long &componentId)
 {
-
   //User application information provides signalling to allow data applications to be associated with the correct user
   //application decoder by the receiver.ETSI EN 300 401 V1.4.1 clause 8.1.20, Figure 68.
 
@@ -2088,57 +1967,45 @@ void readComponentInformation(componentInformation_t &componentInformation, unsi
     componentInformation.userAppData[j] = appDataBuffer[j + 4];
   }
 
-  Serial.print(F("RAM: "));
-  Serial.println(getFreeRam());
-
 }
 
 //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset or the UTC
-timeDab_t readDateTime(unsigned char timeType)
+void readDateTime(timeDab_t& timeDab, unsigned char timeType)
 {
+  unsigned char cmd[2];
+  cmd[0] = DAB_GET_TIME;
+  cmd[1] = timeType & 1;
 
-  timeDab_t dabTime;
-
-  unsigned char cmd[1];
-  unsigned char arg[1];
   unsigned char buf[11];
   //initalize buffer
   for (unsigned short i = 0; i < 11; i++) buf[i] = 0xff;
 
-  cmd[0] = DAB_GET_TIME;
-  arg[0] = timeType & 1;
-
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
-  dabTime.year    = (unsigned short)buf[5] << 8 | buf[4];
-  dabTime.month   = buf[6];
-  dabTime.day     = buf[7];
-  dabTime.hour    = buf[8];
-  dabTime.minute  = buf[9];
-  dabTime.second  = buf[10];
-  dabTime.type    = timeType;
-
-  return dabTime;
+  timeDab.year    = (unsigned short)buf[5] << 8 | buf[4];
+  timeDab.month   = buf[6];
+  timeDab.day     = buf[7];
+  timeDab.hour    = buf[8];
+  timeDab.minute  = buf[9];
+  timeDab.second  = buf[10];
+  timeDab.type    = timeType;
 }
 
 //0xBD DAB_GET_AUDIO_INFO Gets audio information
-audioInformation_t readAudioInformation()
+void readAudioInformation(audioInformation_t& audioInformation)
 {
+  unsigned char cmd[2];
 
-  audioInformation_t audioInformation;
-  unsigned char cmd[1];
-  unsigned char arg[1];
+  cmd[0] = DAB_GET_AUDIO_INFO;
+  cmd[1] = 0;
+
   unsigned char buf[10];
-
   //initalize buffer
   for (unsigned char i = 0; i < 10; i++) buf[i] = 0xff;
 
-  cmd[0] = DAB_GET_AUDIO_INFO;
-  arg[0] = 0x00;
-
-  writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
@@ -2149,16 +2016,11 @@ audioInformation_t readAudioInformation()
   audioInformation.audioSbrFlag = buf[8] >> 1 & 1;
   audioInformation.audioMode =    buf[8] & 1;
   audioInformation.audioDrcGain = buf[9] & 1;
-
-  return audioInformation;
 }
 
 //0xBE DAB_GET_SUBCHAN_INFO Get technical information about the component
-componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long &serviceId, unsigned long &componentId)
+void readComponentTechnicalInformation(componentTechnicalInformation_t& componentTechnicalInformation, unsigned long &serviceId, unsigned long &componentId)
 {
-
-  componentTechnicalInformation_t componentTechnicalInformation;
-
   unsigned char cmd[12];
 
   cmd[0] = DAB_GET_SUBCHAN_INFO;
@@ -2178,7 +2040,7 @@ componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long 
   //initalize buffer
   for (unsigned short i = 0; i < 12; i++) buf[i] = 0xff;
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
@@ -2189,35 +2051,16 @@ componentTechnicalInformation_t readComponentTechnicalInformation(unsigned long 
   componentTechnicalInformation.numberCU       = (unsigned short) buf[9] << 8 | buf[8];
   componentTechnicalInformation.addressCU      = (unsigned short) buf[11] << 8 | buf[10];
 
-  return componentTechnicalInformation;
 }
 
-//0xBF DAB_GET_FREQ_INFO Gets ensemble frequency information list
-unsigned long readFrequencyInformationList()
+//0xBF DAB_GET_FREQ_INFO Gets ensemble frequency information table
+void readFrequencyInformationTable(frequencyInformationTableHeader_t& frequencyInformationTableHeader)
 {
-
-  struct frequencyInformationList_t
-  {
-    unsigned long id;
-    unsigned long frequency;
-    unsigned char index;
-    unsigned char rnm;
-    unsigned char continuityFlag;
-    unsigned char controlField;
-  };
-
-  struct frequencyInformationListHeader_t
-  {
-    unsigned short len;
-    frequencyInformationList_t frequencyInfrormationlist[];
-  };
-
   unsigned char cmd[2] = {DAB_GET_FREQ_INFO, 0};
 
-  unsigned char bufferSize = 20;
-  unsigned char buf[bufferSize];
+  unsigned char buf[20];
   //initalize buffer
-  for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
+  for (unsigned short i = 0; i < 20; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
@@ -2226,20 +2069,34 @@ unsigned long readFrequencyInformationList()
 
   serialPrintSi468x::printResponseHex(buf, sizeof(buf));
 
-  return (unsigned long)buf[7] << 24 | (unsigned long)buf[7] << 16 | (unsigned long)buf[7] << 8 | buf[4];
+  //free memory
+  delete[] frequencyInformationTableHeader.frequencyInformationTable;
+
+  //read size
+  frequencyInformationTableHeader.len = (unsigned long)buf[7] << 24 | (unsigned long)buf[5] << 16 | (unsigned long)buf[5] << 8 | buf[4];
+
+  //allocate memory
+  frequencyInformationTableHeader.frequencyInformationTable = new frequencyInformationTable_t[frequencyInformationTableHeader.len];
+
+  //check if success
+  if (frequencyInformationTableHeader.frequencyInformationTable == nullptr)
+  {
+    return;
+    //errorCode = 10//error
+  }
+
 }
 
 //0xC0 DAB_GET_SERVICE_INFO Get digital service information
-serviceInformation_t readServiceInformation(unsigned long &serviceId)
+void readServiceInformation(serviceInformation_t& serviceInformation, unsigned long &serviceId)
 {
-  serviceInformation_t serviceInformation;
-
   unsigned char cmd[1] = {DAB_GET_SERVICE_INFO};
-  unsigned char arg[7];
+
   unsigned char buf[26];
   //initalize buffer
   for (unsigned short i = 0; i < 26; i++) buf[i] = 0xff;
 
+  unsigned char arg[7];
   arg[0] = 0;
   arg[1] = 0;
   arg[2] = 0;
@@ -2249,8 +2106,8 @@ serviceInformation_t readServiceInformation(unsigned long &serviceId)
   arg[6] = serviceId >> 24 & 0xFF;
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-  delayMicroseconds(10000);
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_ms);
+  delayMicroseconds(DURATION_10000_ms);
   readReply(buf, sizeof(buf));
 
   //serviceInfo1
@@ -2272,8 +2129,6 @@ serviceInformation_t readServiceInformation(unsigned long &serviceId)
   serviceInformation.serviceLabel[16] = '\0';
 
   serviceInformation.abbreviationMask       = (unsigned short) buf[25] << 8 | buf[24];
-
-  return serviceInformation;
 }
 
 
@@ -2292,14 +2147,17 @@ bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTab
 
   //Get actual frequency table
   //unsigned long* frequencyTable readFrequencyTable();
-  unsigned char numFrequencies = readNumberFrequencies();
+
+  unsigned char numberIndices;
+  readNumberFrequencies(numberIndices);
 
   //Scan trough index table - start with index 0
-  for (unsigned char index = 0; index < numFrequencies; index++)
+  for (unsigned char index = 0; index < numberIndices; index++)
   {
     tuneIndex(index);
     //Check receive signal quality
-    rsqInformation = readRsqInformation();
+    readRsqInformation(rsqInformation);
+
     //DAB found and valid save The threshold for dab detected is greater than 4.
     if ((rsqInformation.fastDect > 4) && rsqInformation.valid)
     {
@@ -2332,12 +2190,14 @@ bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTab
 void tune(unsigned char &dabIndex, bool up)
 {
   //read actual index
-  rsqInformation_t rsqInformation = readRsqInformation();
+  rsqInformation_t rsqInformation;
+  readRsqInformation(rsqInformation);
 
   //remember actual index
   uint8_t indexStart = rsqInformation.index;
   //get actual number of indices
-  uint8_t numberIndices = readNumberFrequencies();
+  uint8_t numberIndices;
+  readNumberFrequencies(numberIndices);
 
   if (up)
   {
@@ -2358,28 +2218,26 @@ void tune(unsigned char &dabIndex, bool up)
   tuneIndex(indexStart);
 
   //read result
-  rsqInformation = readRsqInformation();
+  readRsqInformation(rsqInformation);
 
   dabIndex = rsqInformation.index;
 }
 
-//Read number of frequencies
-unsigned char readNumberFrequencies()
+//0xB9 DAB_GET_FREQ_LIST Read number of indices
+void readNumberFrequencies(unsigned char& numberIndices)
 {
   unsigned char cmd[2]  = {DAB_GET_FREQ_LIST, 0};
   unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-  writeCommandArgument(cmd, sizeof(cmd));
+  writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(DURATION_10000_MIKROS);
   readReply(buf, sizeof(buf));
 
-  //Number of frequencies in table
-  unsigned char numberFrequencies = buf[4];
+  //save number of frequencies in table
+  numberIndices = buf[4];
 
   //Validity ?
-  if (numberFrequencies > MAX_INDEX) numberFrequencies = 0;
-
-  return numberFrequencies;
+  if (numberIndices > MAX_INDEX) numberIndices = 0;
 }
 
 
@@ -2421,7 +2279,7 @@ unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection, 
     //Serial.print(F("Rssi Avgerage: "));
     Serial.print(varCap);
     Serial.print(",");
-    
+
     //Serial.println(rssi / 256.00);
     rssi = rssi >> 7;//shift 2^7
     Serial.println(rssi);

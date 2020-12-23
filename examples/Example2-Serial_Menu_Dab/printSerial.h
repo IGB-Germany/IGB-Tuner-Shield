@@ -80,6 +80,8 @@ void dabPrintIndex(unsigned char index);
 void dabPrintFrequency(unsigned long frequency);
 //Print Service Linking Information
 void printServiceLinkingInformation(serviceLinkingInformation_t& serviceLinkingInformation);
+//Print ensemble frequency information table
+void printFrequencyInformation(frequencyInformationTableHeader_t& frequencyInformationTableHeader);
 
 //Print service data
 void dabPrintServiceData(serviceData_t& dabServiceData);

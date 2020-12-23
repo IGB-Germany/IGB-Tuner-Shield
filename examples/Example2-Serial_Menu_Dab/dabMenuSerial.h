@@ -20,5 +20,16 @@ void menuScanEnsemble(char ch);
 void menuScanFrequency(char ch);
 void menuTechnical(char ch);
 void menuDevice(char ch);
+
+//Get free RAM
+unsigned short getFreeRam();
+//Get status of mute
+unsigned char readMute();
+//Mute 0,1,2,3; No, Left, Rright, Both, default No
+void writeMute(unsigned char channelMuted = 0);
+
+//Volume
+unsigned char volumeUp();
+unsigned char volumeDown();
  
 #endif //DAB_MENU_SERIAL_H

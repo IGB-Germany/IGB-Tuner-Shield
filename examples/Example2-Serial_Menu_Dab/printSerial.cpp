@@ -385,6 +385,34 @@ void printServiceLinkingInformation(serviceLinkingInformation_t& serviceLinkingI
   Serial.println();
 }
 
+//Print ensemble frequency information table
+void printFrequencyInformation(frequencyInformationTableHeader_t& frequencyInformationTableHeader)
+{
+  Serial.println(F("Frequency Information (FI)"));
+  Serial.print(F("Size:\t\t"));
+  Serial.println(frequencyInformationTableHeader.len);
+  Serial.println();
+
+  for (unsigned char i = 0; i < frequencyInformationTableHeader.len; i++)
+  {
+    Serial.print(F("Id:\t\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].id);
+    Serial.print(F("Frequency:\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].frequency);
+    Serial.print(F("Index:\t\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].index);
+    Serial.print(F("RNM:\t\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].rnm);
+    Serial.print(F("Continuity:\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].continuityFlag);
+    Serial.print(F("Control:\t"));
+    Serial.println(frequencyInformationTableHeader.frequencyInformationTable[i].controlField);
+    Serial.println();
+  }
+  Serial.println();
+}
+
+
 //Print Service ID and Component ID
 void dabPrintIds(unsigned long serviceId, unsigned long componentId)
 {
@@ -568,33 +596,33 @@ void printComponentInformation(componentInformation_t& componentInformation)
 }
 
 //Print Service Data
-void dabPrintServiceData(serviceData_t& dabServiceData)
+void dabPrintServiceData(serviceData_t& serviceData)
 {
   Serial.println(F("Service Data"));
   Serial.print(F("Error: "));
-  Serial.print(dabServiceData.errorInterrupt);
+  Serial.print(serviceData.errorInterrupt);
   Serial.print(F(" Overflow: "));
-  Serial.print(dabServiceData.overflowInterrupt);
+  Serial.print(serviceData.overflowInterrupt);
   Serial.print(F(" Packet: "));
-  Serial.println(dabServiceData.packetInterrupt);
+  Serial.println(serviceData.packetInterrupt);
   Serial.print(F("Buffer Count:\t"));
-  Serial.println(dabServiceData.bufferCount);
+  Serial.println(serviceData.bufferCount);
   Serial.print(F("Status Service:\t"));
-  Serial.println(dabServiceData.statusService);
+  Serial.println(serviceData.statusService);
   Serial.print(F("Source 0,1,2,3:\t"));
-  Serial.println(dabServiceData.dataSource);
+  Serial.println(serviceData.dataSource);
   Serial.print(F("Data Type:\t"));
-  Serial.println(dabServiceData.dataType);
+  Serial.println(serviceData.dataType);
   Serial.print(F("Service Id:\t0x"));
-  Serial.println(dabServiceData.serviceId, HEX);
+  Serial.println(serviceData.serviceId, HEX);
   Serial.print(F("Component Id:\t0x"));
-  Serial.println(dabServiceData.componentId, HEX);
+  Serial.println(serviceData.componentId, HEX);
   Serial.print(F("Length of Data:\t"));
-  Serial.println(dabServiceData.dataLength);
+  Serial.println(serviceData.dataLength);
   Serial.print(F("Segment Number:\t"));
-  Serial.println(dabServiceData.segmentNumber);
+  Serial.println(serviceData.segmentNumber);
   Serial.print(F("Number Segments:"));
-  Serial.println(dabServiceData.numberSegments);
+  Serial.println(serviceData.numberSegments);
   Serial.println();
 }
 
@@ -612,11 +640,16 @@ void printError(unsigned char errorCode)
   Serial.println(errorCode);
   if (errorCode == 1)
     Serial.println(F("No Reception"));
-  if (errorCode == 2)
+  else if (errorCode == 2)
     Serial.println(F("No Servicelist"));
-  if (errorCode == 3)
+  else if (errorCode == 3)
     Serial.println(F("No Service Linking"));
-
+  else if (errorCode == 4)
+    Serial.println(F("No Service"));
+  else if (errorCode == 10)
+    Serial.println(F("Memory Allocation"));
+  else
+    Serial.println(F("Unknown"));
   Serial.println();
 }
 
@@ -673,7 +706,7 @@ void dabPrintMenuTechnical()
   Serial.println(F("v: Event Info"));
   Serial.println(F("a: Audio Info"));
   Serial.println(F("x: Technical Info"));
-  Serial.println(F("d: Date and Time"));
+  Serial.println(F("#: Date and Time"));
   Serial.println(F("o: Component Info"));
   Serial.println(F("i: Frequency List"));
   Serial.println(F("t: Test Varactor"));
@@ -682,22 +715,20 @@ void dabPrintMenuTechnical()
   Serial.println();
 }
 
-//Print DAB Scan Menu
+//Print  Menu Scan Frequency
 void dabPrintMenuScanFrequency()
 {
-  Serial.println(F("DAB Menu Frequency Scan"));
-  //Print General Menu
-  dabPrintMenu();
+  Serial.println(F("Menu Scan Frequency"));
   Serial.println(F("f: Get Frequency Table"));
   Serial.println(F("1: Set Standard Table"));
   Serial.println(F("2: Set Table 2"));
   Serial.println(F("3: Set Table 3"));
   Serial.println(F("h: Service List Header"));
   Serial.println();
-  Serial.println(F("u: Index Manual Up"));
-  Serial.println(F("z: Index Manual Down"));
-  Serial.println(F("d: Index Auto Up"));
-  Serial.println(F("a: Index Auto Down"));
+  Serial.println(F("l: Index Up"));
+  Serial.println(F("k: Index Down"));
+  Serial.println(F(".: Scan Index Up"));
+  Serial.println(F(",: Scan Index Down"));
   Serial.println();
   Serial.println(F("s: Index Bandscan"));
   Serial.println(F("i: Index Valid List"));
@@ -706,9 +737,10 @@ void dabPrintMenuScanFrequency()
   Serial.println();
 }
 
+//Print Menu Scan Frequency
 void printMenuScanEnsemble()
 {
-  Serial.println(F("Scan Ensemble"));
+  Serial.println(F("Menu Scan Ensemble"));
   Serial.println(F("e: Ensemble Information"));
   Serial.println(F("h: Header Ensemble"));
   Serial.println(F("p: Parse Ensemble"));
@@ -724,12 +756,10 @@ void printMenuScanEnsemble()
 }
 
 
-//Print Device Menu
+//Print Menu Device
 void dabPrintMenuDevice()
 {
-  Serial.println(F("Device Menu"));
-  //Print General Menu
-  dabPrintMenu();
+  Serial.println(F("Menu Device"));
   Serial.println(F("v: Version Info"));
   Serial.println(F("a: Power Up Arguments"));
   Serial.println(F("n: Part Info"));

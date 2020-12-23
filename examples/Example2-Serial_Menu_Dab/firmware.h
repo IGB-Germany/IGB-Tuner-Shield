@@ -41,61 +41,34 @@ enum firmware_t
   sizeFirmwareDab             = 0x0007F4E8,
   checkSumFirmwareDab         = 0x37A4,
   crc32FirmwareDab            = 0xb5edae86,
-  
+
   //Firmware Image Mode 3 AM
   addrFirmwareAm              = 0x00140000,
   sizeFirmwareAm              = 0x000813CC,
   checkSumFirmwareAm          = 0x59A7,
   crc32FirmwareAm             = 0x375e4a88,
 
-  ADDRESS_TEXT                = 0x001D0000,//Customer Specific Data: 32 rows, 32 columns * 100 pages = 102400 = 0x00019000 Bytes; 
-  
+  ADDRESS_TEXT                = 0x001D0000,//Customer Specific Data: 32 rows, 32 columns * 100 pages = 102400 = 0x00019000 Bytes;
+ 
+  FAVORITE1_ADDRESS           = 0x001E9000,//favorite1, lenght 9 Bytes, uint8_t index, uint32_t serviceId, uint32_t componentId
+  FAVORITE2_ADDRESS           = 0x001E9009,//favorite2, lenght 9 Bytes, uint8_t index, uint32_t serviceId, uint32_t componentId
+  FAVORITE3_ADDRESS           = 0x001E9012,//favorite3, lenght 9 Bytes, uint8_t index, uint32_t serviceId, uint32_t componentId
+  FAVORITE4_ADDRESS           = 0x001E901B,//favorite3, lenght 9 Bytes, uint8_t index, uint32_t serviceId, uint32_t componentId
+  //END 0x001F FFFF
+
 };
 
 //Mini Patch Bootloader
-/*
-  const unsigned long addrBootloaderPatchMini=0x00010000;
-  const unsigned long sizeBootloaderPatchMini=0x000003AC;
-  const char nameBootloaderPatchMini[] = "rom00_patch_mini.003.bin";
-  const unsigned short checkSumBootloaderPatchMini = 0x36E9;
-  const unsigned long crc32BootloaderPatchMini = 0x8944b5ae;
-*/
-
+const char nameBootloaderPatchMini[] = "rom00_patch_mini.003.bin";
 //Fullpatch Bootloader
-/*
-  const unsigned long addrBootloaderPatchFull = 0x00020000;
-  const unsigned long sizeBootloaderPatchFull = 0x000016A4;
-  const char nameBootloaderPatchFull[] = "rom00_patch.016.bin";
-  const unsigned short checkSumBootloaderPatchFull = 0x02BF;
-  const unsigned long crc32BootloaderPatchFull = 0xa93227b5;
-*/
-
-
-/*
-  //Firmware Image Mode 1
-  const unsigned long addrFirmwareFm = 0x00030000;
-  const unsigned long sizeFirmwareFm = 0x00081704;
-  const char nameFirmwareFm[] = "fmhd_radio_5_0_4.bin";
-  const unsigned short checkSumFirmwareFm = 0x3A10;
-  const unsigned long crc32FirmwareFm = 0x40fbbd93;
-*/
-
-/*
-  //Firmware Image Mode 2
-  const unsigned long addrFirmwareDab = 0x000C0000;
-  const unsigned long sizeFirmwareDab = 0x0007F4E8;
-  const char nameFirmwareDab[] = "dab_radio_5_0_5.bin";
-  const unsigned short checkSumFirmwareDab = 0x37A4;
-  const unsigned long crc32FirmwareDab = 0xb5edae86;
-*/
-
-/*
+const char nameBootloaderPatchFull[] = "rom00_patch.016.bin";
+//Firmware Image Mode 1
+const char nameFirmwareFm[] = "fmhd_radio_5_0_4.bin";
+//Firmware Image Mode 2
+const char nameFirmwareDab[] = "dab_radio_5_0_5.bin";
 //Firmware Image Mode 3
-const unsigned long addrFirmwareAm = 0x00140000;
-const unsigned long sizeFirmwareAm = 0x000813CC;
 const char nameFirmwareAm[] = "amhd_radio_2_0_11.bin";
-const unsigned short checkSumFirmwareAm = 0x59A7;
-const unsigned long crc32FirmwareAm = 0x375e4a88;
-*/
+
+
 
 #endif //FIRMWARE_H
