@@ -26,6 +26,7 @@ void dabPrintMenuDevice();
 void dabPrintMenu();
 
 void printVersion(const char version[]);
+void printFreeRam(const unsigned short freeRam);
 
 void printFlashMemoryInfo();
 
@@ -71,6 +72,8 @@ void dabPrintIds(unsigned long serviceId, unsigned long componentId);
 
 //Print frequency table
 void dabPrintFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
+//Print frequency table
+void dabPrintFrequencyTable(const frequencyTableHeader_t frequencyTableHeader);
 
 //Print valid index list
 void dabPrintValidIndexList(unsigned char dabNumValidIndex, unsigned char dabValidIndexList[]);

@@ -1,6 +1,3 @@
-//Testing
-//Print detailed info about frequency table
-#define DEBUG_DAB_FREQUENCY_TABLE
 //Print detailed info about Ensemble
 #define DEBUG_DAB_PARSE_ENSEMBLE
 
@@ -494,26 +491,20 @@ void boot()
 }
 
 //0x08 GET_PART_INFO Get Device Part Info
-partInfo_t readPartInfo()
+void readPartInfo(partInfo_t& partInfo)
 {
-  partInfo_t partInfo;
-
   unsigned char cmd[2];
-
-  unsigned char buf[23] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
   cmd[0] = GET_PART_INFO;
   cmd[1] = 0;
 
-  writeCommand(cmd, sizeof(cmd));
+  unsigned char buf[23] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+  writeCommand(cmd, sizeof(cmd));
   readReply(buf, sizeof(buf));
 
   partInfo.chipRev    = buf[4];
   partInfo.romId      = buf[5];
   partInfo.partNumber = buf[9] << 8 | buf[8];
-
-  return partInfo;
 }
 
 //0x09 GET_SYS_STATE reports basic system state information such as which mode is active; FM, DAB, etc.
@@ -641,29 +632,26 @@ bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset)
 }
 
 //0x12 GET_FUNC_INFO Get Firmware Information
-firmwareInformation_t readFirmwareInformation()
+void readFirmwareInformation(firmwareInformation_t& firmwareInformation)
 {
-  firmwareInformation_t deviceFirmwareInfo = {0, 0, 0, 0, 0, 0, 0, 0};
-  unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
   unsigned char cmd[2];
   cmd[0] = GET_FUNC_INFO;
   cmd[1] = 0;
+
+  unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   writeCommand(cmd, sizeof(cmd));
 
   readReply(buf, sizeof(buf));
 
-  deviceFirmwareInfo.revisionNumberMajor = buf[4];
-  deviceFirmwareInfo.revisionNumberMinor = buf[5];
-  deviceFirmwareInfo.revisionNumberBuild = buf[6];
-  deviceFirmwareInfo.noSvnFlag = buf[7] >> 7 & 1;
-  deviceFirmwareInfo.location = buf[7] >> 4 & 2;
-  deviceFirmwareInfo.mixedRevFlag = buf[7] >> 1 & 1;
-  deviceFirmwareInfo.localModFlag = buf[7] & 1;
-  deviceFirmwareInfo.svnId = buf[8] | (unsigned long)buf[9] << 8 | (unsigned long)buf[10] << 16 | (unsigned long)buf [11] << 24;
-
-  return deviceFirmwareInfo;
+  firmwareInformation.revisionNumberMajor = buf[4];
+  firmwareInformation.revisionNumberMinor = buf[5];
+  firmwareInformation.revisionNumberBuild = buf[6];
+  firmwareInformation.noSvnFlag = buf[7] >> 7 & 1;
+  firmwareInformation.location = buf[7] >> 4 & 2;
+  firmwareInformation.mixedRevFlag = buf[7] >> 1 & 1;
+  firmwareInformation.localModFlag = buf[7] & 1;
+  firmwareInformation.svnId = buf[8] | (unsigned long)buf[9] << 8 | (unsigned long)buf[10] << 16 | (unsigned long)buf [11] << 24;
 }
 
 //0x13 SET_PROPERTY Sets the value of a property
@@ -780,6 +768,8 @@ ensembleHeader_t ensembleHeader = {0, 0, 0, 0, 0, nullptr};
 
 //Frequency table - dynamic memory allocation
 long unsigned* frequencyTable = nullptr;
+
+frequencyTableHeader_t frequencyTableHeader = {0, nullptr};
 
 //Table of valid frequencies
 unsigned char* dabValidIndexList = nullptr;
@@ -1766,8 +1756,6 @@ void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformati
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
-  serialPrintSi468x::printResponseHex(buf, sizeof(buf));
-
   serviceLinkingInformation.size                = (unsigned short) buf[5] << 8 | buf[4];
   serviceLinkingInformation.numLinkSets         = buf[6];
   serviceLinkingInformation.lsn                 = (unsigned short) buf[9] << 8 | buf[8];
@@ -1789,16 +1777,12 @@ void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned ch
     if both the CTS and ERR bits are set. The command may only be sent in powerup mode.
   */
 
-  uint8_t cmd[1];
+  uint8_t cmd[1] = {DAB_SET_FREQ_LIST};
+
   uint8_t arg[3 + 4 * numFreq]; //4 arg per frequency
-  uint8_t buf[4] = {0xff, 0xff, 0xff, 0xff};
-
-  cmd[0]  = DAB_SET_FREQ_LIST;
-
   arg[0] = numFreq;
   arg[1] = 0;
   arg[2] = 0;
-
   //fill arg array with frequencies
   for (uint8_t i = 0; i < numFreq && i < MAX_INDEX; i++)
   {
@@ -1808,13 +1792,11 @@ void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned ch
     arg[6 + 4 * i] = frequencyTable[i] >> 24 & 0xFF;
   }
 
+  uint8_t buf[4] = {0xff, 0xff, 0xff, 0xff};
+
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
-
-#ifdef DEBUG_DAB_FREQUENCY_TABLE
-  serialPrintSi468x::printResponseHex(buf, sizeof(buf));
-#endif
 }
 
 //0xB9 DAB_GET_FREQ_LIST Get frequency table
@@ -1823,7 +1805,7 @@ unsigned long* readFrequencyTable()
   //free memory from previous table
   if (frequencyTable != nullptr)
   {
-    free(frequencyTable);
+    delete[]frequencyTable;
     frequencyTable = nullptr;
   }
 
@@ -1831,9 +1813,8 @@ unsigned long* readFrequencyTable()
   unsigned char numberFrequencies;
   readNumberFrequencies(numberFrequencies);
 
-  //Dynamically allocate memory and initialize with 0
-  frequencyTable = (uint32_t*) calloc(numberFrequencies, (sizeof(uint32_t)));
-
+  //Dynamically allocate memory
+  frequencyTable = new uint32_t[numberFrequencies];
   //Error
   if (frequencyTable == nullptr) return nullptr;
 
@@ -1860,8 +1841,76 @@ unsigned long* readFrequencyTable()
     for (uint8_t j = 0;  j < 8; j++) freq[j] = 0xff;
   }
 
-
   return  frequencyTable;
+}
+
+//0xB9 DAB_GET_FREQ_LIST Read number of indices
+void readNumberFrequencies(unsigned char& numberIndices)
+{
+  unsigned char cmd[2]  = {DAB_GET_FREQ_LIST, 0};
+  unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+  writeCommand(cmd, sizeof(cmd));
+  delayMicroseconds(DURATION_10000_MIKROS);
+  readReply(buf, sizeof(buf));
+
+  //save number of frequencies in table
+  numberIndices = buf[4];
+
+  //Validity ?
+  if (numberIndices > MAX_INDEX) numberIndices = 0;
+}
+
+
+//0xB9 DAB_GET_FREQ_LIST Get frequency table
+void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader)
+{
+  //free memory from previous table
+  if (frequencyTableHeader.table != nullptr)
+  {
+    delete[]frequencyTableHeader.table;
+    frequencyTableHeader.table = nullptr;
+    frequencyTableHeader.number = 0;
+  }
+
+  uint8_t cmd[2]  = {DAB_GET_FREQ_LIST, 0};
+  //4 Statusbytes + 4 Bytes from command DAB_GET_FREQ_LIST
+  uint8_t buf[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+  //read number of frequencies
+  readNumberFrequencies(frequencyTableHeader.number);
+
+  //Dynamically allocate memory
+  frequencyTableHeader.table = new uint32_t[frequencyTableHeader.number];
+
+  //Error
+  if (frequencyTableHeader.table == nullptr)
+  {
+    frequencyTableHeader.number = 0;
+    return nullptr;
+  }
+
+
+  writeCommand(cmd, sizeof(cmd));
+  delayMicroseconds(DURATION_10000_MIKROS);
+
+  //Fill index table
+  //Start reading 4 Bytes per frequency
+  //OFFSET parameter must be modulo four
+  uint16_t offset = 0;
+  //readReplyOffset(buf, sizeof(buf), offset);
+
+  for (uint8_t i = 0; i < frequencyTableHeader.number; i++)
+  {
+    offset = offset + 4 ; //increase offset to next frequency
+    readReplyOffset(buf, sizeof(buf), offset);
+    delayMicroseconds(DURATION_10000_MIKROS);
+    frequencyTableHeader.table[i] = (uint32_t) buf[7] << 24 | (uint32_t) buf[6] << 16 | (uint32_t) buf[5] << 8 | buf[4];
+
+    //initalize for next frequency
+    for (uint8_t j = 0;  j < 8; j++) buf[j] = 0xff;
+  }
+
 }
 
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
@@ -1997,7 +2046,6 @@ void readDateTime(timeDab_t& timeDab, unsigned char timeType)
 void readAudioInformation(audioInformation_t& audioInformation)
 {
   unsigned char cmd[2];
-
   cmd[0] = DAB_GET_AUDIO_INFO;
   cmd[1] = 0;
 
@@ -2221,82 +2269,4 @@ void tune(unsigned char &dabIndex, bool up)
   readRsqInformation(rsqInformation);
 
   dabIndex = rsqInformation.index;
-}
-
-//0xB9 DAB_GET_FREQ_LIST Read number of indices
-void readNumberFrequencies(unsigned char& numberIndices)
-{
-  unsigned char cmd[2]  = {DAB_GET_FREQ_LIST, 0};
-  unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-  writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(DURATION_10000_MIKROS);
-  readReply(buf, sizeof(buf));
-
-  //save number of frequencies in table
-  numberIndices = buf[4];
-
-  //Validity ?
-  if (numberIndices > MAX_INDEX) numberIndices = 0;
-}
-
-
-//Test varactor tuning capacitor
-unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection, unsigned char numberMeasurments)
-{
-  unsigned short rssi = 0;
-  /*max rssi*/
-  unsigned short rssiMax = 0;
-  /*number of measurements*/
-  unsigned char numberVar = 129;
-  /*list of rssi measurments*/
-  unsigned short varCapList[numberVar] = {0};
-
-  unsigned char varCapMax = 0;
-
-  //count all values from 0 ..128
-  for (unsigned char varCap = 0; varCap < numberVar; varCap++)
-  {
-    //Serial.print(F("Varactor capacity: "));
-    //Serial.println(varCap);
-    //Serial.print(((varCap - 1) * 0.25));
-    //Serial.print(F("4.2f pF \n",(cap-1)*0.25);
-    //31.75 pF Max
-    tuneIndex(index, varCap, injection);
-
-    rssi = readRssi();
-
-    /*save in list*/
-    varCapList[varCap] = rssi;
-
-    //check if rssi better
-    if (rssi > rssiMax)
-    {
-      //save new values
-      rssiMax = rssi;
-      varCapMax = varCap;
-    }
-    //Serial.print(F("Rssi Avgerage: "));
-    Serial.print(varCap);
-    Serial.print(",");
-
-    //Serial.println(rssi / 256.00);
-    rssi = rssi >> 7;//shift 2^7
-    Serial.println(rssi);
-
-  }
-
-  Serial.println();
-  Serial.print(F("Index:\t"));
-  Serial.println(index);
-  Serial.print(F("Max Rssi:\t"));
-  Serial.print(rssiMax / 256.0);
-  Serial.println(F(" dBuV"));
-  Serial.print(F("Varactor count:"));
-  Serial.print(varCapMax);
-  Serial.print(F(" pf:"));
-  Serial.println(varCapMax / 4);
-  Serial.println();
-
-  return varCapMax;
 }

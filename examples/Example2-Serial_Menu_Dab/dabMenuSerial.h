@@ -31,5 +31,9 @@ void writeMute(unsigned char channelMuted = 0);
 //Volume
 unsigned char volumeUp();
 unsigned char volumeDown();
- 
+
+//Test varactor tuning capacitor
+void testVaractorCap(unsigned char index, unsigned char injection = 0);
+
+
 #endif //DAB_MENU_SERIAL_H

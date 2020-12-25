@@ -362,7 +362,7 @@ void menuTechnical(char ch)
   }
 
   //Get audio information
-  else if (ch == 'a')
+  else if (ch == 'A')
   {
     audioInformation_t audioInformation;
     readAudioInformation(audioInformation);
@@ -424,12 +424,8 @@ void menuTechnical(char ch)
     {
       frequencyInformationTableHeader_t frequencyInformationTableHeader;
       readFrequencyInformationTable(frequencyInformationTableHeader);
-      Serial.print(F("RAM: "));
-      Serial.println(getFreeRam());
-      Serial.println();
       
       serialPrintSi468x::printFrequencyInformation(frequencyInformationTableHeader);
-
     }
     else
     {
@@ -441,11 +437,11 @@ void menuTechnical(char ch)
   else if (ch == 't')
   {
     //Test varactor tuning capacitor
-    dabTestVaractorCap(dabIndex);
+    testVaractorCap(dabIndex);
   }
 
   //Read And Print RSSI
-  else if (ch == 'r')
+  else if (ch == 'R')
   {
     while (ch != 'x')
     {
@@ -498,11 +494,10 @@ void menuScanFrequency(char ch)
   //Get Frequency Table
   else if (ch == 'f')
   {
-    uint8_t numberIndices;
-    readNumberFrequencies(numberIndices);
-
-    //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
+    readFrequencyTable(frequencyTableHeader);
+    
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
   }
 
   //Set Frequency Table
@@ -510,14 +505,10 @@ void menuScanFrequency(char ch)
   {
     //Set the frequency table
     writeFrequencyTable(frequencyTableDefault, 41);
-    Serial.print(F("RAM: "));
-    Serial.println(getFreeRam());
-    Serial.println();
-
-    uint8_t numberIndices;
-    readNumberFrequencies(numberIndices);
-    //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
+    readFrequencyTable(frequencyTableHeader);
+    
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
   }
 
   //Set Frequency Table
@@ -525,15 +516,10 @@ void menuScanFrequency(char ch)
   {
     //Set the frequency table
     writeFrequencyTable(frequencyTableRheinlandPfalz, 2);
-
-    Serial.print(F("RAM: "));
-    Serial.println(getFreeRam());
-    Serial.println();
-
-    uint8_t numberIndices;
-    readNumberFrequencies(numberIndices);
-    //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
+    readFrequencyTable(frequencyTableHeader);
+    
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
   }
 
   //Set Frequency Table
@@ -541,15 +527,10 @@ void menuScanFrequency(char ch)
   {
     //Set the frequency table
     writeFrequencyTable(frequencyTableItalienRas, 5);
-
-    Serial.print(F("RAM: "));
-    Serial.println(getFreeRam());
-    Serial.println();
-
-    uint8_t numberIndices;
-    readNumberFrequencies(numberIndices);
-    //Print frequency table
-    serialPrintSi468x::dabPrintFrequencyTable(readFrequencyTable(), numberIndices);
+    readFrequencyTable(frequencyTableHeader);
+    
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
   }
 
   //index Up
@@ -719,7 +700,8 @@ void menuDevice(char ch)
   //Print Device Part Info
   else if (ch == 'n')
   {
-    partInfo_t partInfo = readPartInfo();
+    partInfo_t partInfo;
+    readPartInfo(partInfo);
     serialPrintSi468x::printPartInfo(partInfo);
   }
 
@@ -732,7 +714,8 @@ void menuDevice(char ch)
   //Print Firmware Information
   else if (ch == 'i')
   {
-    firmwareInformation_t firmwareInformation = readFirmwareInformation();
+    firmwareInformation_t firmwareInformation;
+    readFirmwareInformation(firmwareInformation);
     serialPrintSi468x::printFirmwareInformation(firmwareInformation);
   }
 
@@ -751,16 +734,16 @@ void menuDevice(char ch)
 
   //power down
   /*
-  else if (ch == 'd')
-  {
+    else if (ch == 'd')
+    {
     powerDown(true);
-  }
-  //power up
-  else if (ch == 'u')
-  {
+    }
+    //power up
+    else if (ch == 'u')
+    {
     powerDown(false);
-  }
-*/
+    }
+  */
 
   //boot
   else if (ch == '6')
@@ -841,4 +824,62 @@ unsigned char volumeDown()
 
   writePropertyValue(AUDIO_ANALOG_VOLUME, volume);
   return volume;
+}
+
+//Test varactor tuning capacitor
+void testVaractorCap(unsigned char index, unsigned char injection)
+{
+  unsigned short rssi = 0;
+  /*max rssi*/
+  unsigned short rssiMax = 0;
+  /*number of measurements*/
+  unsigned char numberVar = 129;
+  /*list of rssi measurments*/
+  unsigned short varCapList[numberVar] = {0};
+
+  unsigned char varCapMax = 0;
+
+  //count all values from 0 ..128
+  for (unsigned char varCap = 0; varCap < numberVar; varCap++)
+  {
+    //Serial.print(F("Varactor capacity: "));
+    //Serial.println(varCap);
+    //Serial.print(((varCap - 1) * 0.25));
+    //Serial.print(F("4.2f pF \n",(cap-1)*0.25);
+    //31.75 pF Max
+    tuneIndex(index, varCap, injection);
+
+    rssi = readRssi();
+
+    /*save in list*/
+    varCapList[varCap] = rssi;
+
+    //check if rssi better
+    if (rssi > rssiMax)
+    {
+      //save new values
+      rssiMax = rssi;
+      varCapMax = varCap;
+    }
+    //Serial.print(F("Rssi Avgerage: "));
+    Serial.print(varCap);
+    Serial.print(",");
+
+    //Serial.println(rssi / 256.00);
+    rssi = rssi >> 7;//shift 2^7
+    Serial.println(rssi);
+
+  }
+
+  Serial.println();
+  Serial.print(F("Index:\t"));
+  Serial.println(index);
+  Serial.print(F("Max Rssi:\t"));
+  Serial.print(rssiMax / 256.0);
+  Serial.println(F(" dBuV"));
+  Serial.print(F("Varactor count:"));
+  Serial.print(varCapMax);
+  Serial.print(F(" pf:"));
+  Serial.println(varCapMax / 4);
+  Serial.println();
 }

@@ -6,22 +6,21 @@
   Driver and application for tuner shield by IGB
 
   SPI
-  MOSI:   Pin 11
-  MISO:   Pin 12
-  SCK:    Pin 13
-  SS:     Pin 8
+  MOSI:     Pin 11
+  MISO:     Pin 12
+  SCK:      Pin 13
 
   Tuner circuit Si468x
-  Interrupt:  Pin 6
-  Reset:      Pin 3
+  Interrupt:    Pin 6
+  Reset:        Pin 3
+  SlaveSelect:  Pin 8
 
-  Flash memory circuit SST26W onboard
-  SPI
-  SS:     Pin 2
+  Flash memory circuit SST26W onboard SPI
+  SlaveSelect:  Pin 2
 
   Memory needs
   UNO
-  ROM:  29886 Bytes (92%)
+  ROM:  30774 Bytes (95%)
   RAM:    851 Bytes (41%)
 
   Files
@@ -32,7 +31,7 @@
 
 /*
   Changelog
-
+  Changed: unsigned long* readFrequencyTable() 
   Changed: use parameters per reference& in functions to save memory - open
   Changed: use write/read and get/set in function names - open
   Changed: uint8_t etc. datatypes - open
@@ -185,7 +184,7 @@ void loadInit();
 //0x07 BOOT Boots the image currently loaded in RAM
 void boot();
 //0x08 GET_PART_INFO Get Device Part Info
-partInfo_t readPartInfo();
+void readPartInfo(partInfo_t& partInfo);
 //0x09 GET_SYS_STATE reports basic system state information such as which mode is active; FM, DAB, etc.
 unsigned char readSystemState();
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
@@ -194,7 +193,7 @@ void readPowerUpArguments(powerUpArguments_t &powerUpArguments);
 //statusRegister_t readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
 bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
 //0x12 GET_FUNC_INFO Get Firmware Information
-firmwareInformation_t readFirmwareInformation();
+void readFirmwareInformation(firmwareInformation_t& firmwareInformation);
 //0x13 SET_PROPERTY Sets the value of a property
 void writePropertyValue(unsigned short id, unsigned short value);
 //0x14 GET_PROPERTY Retrieve the value of a property
@@ -543,8 +542,12 @@ extern unsigned char* dabValidIndexList;
 //Frequency table - dynamic memory allocation
 extern long unsigned* frequencyTable;
 
-//0xB9 DAB_GET_FREQ_LIST Get frequency table
-unsigned long* readFrequencyTable();
+extern struct frequencyTableHeader_t
+{
+    uint8_t number;
+    uint32_t* table;
+} frequencyTableHeader;
+
 
 //Property value list DAB
 extern unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2];
@@ -577,10 +580,6 @@ bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTab
 //Tune up = true/down = false
 void tune(unsigned char &dabIndex, bool up = true);
 
-//Test varactor tuning capacitor
-unsigned short dabTestVaractorCap(unsigned char index, unsigned char injection = 0, unsigned char numberMeasurments = 10);
-
-
 //0x81 START_DIGITAL_SERVICE Starts an audio or data service
 void startService(const unsigned long& serviceId, const unsigned long& componentId, const unsigned char serviceType = 0);
 //0x82 STOP_DIGITAL_SERVICE Stops an audio or data service
@@ -601,6 +600,12 @@ void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformati
 void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
 //0xB9 DAB_GET_FREQ_LIST Read number of indices
 void readNumberFrequencies(unsigned char& numberIndices);
+
+//0xB9 DAB_GET_FREQ_LIST Get frequency table
+unsigned long* readFrequencyTable();
+//0xB9 DAB_GET_FREQ_LIST Get frequency table
+void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader);
+
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
 void readComponentInformation(componentInformation_t& componentInformation, unsigned long &serviceId, unsigned long &componentId);
 //0xBC DAB_GET_TIME Gets the ensemble time adjusted for the local time offset (0) or the UTC (1)

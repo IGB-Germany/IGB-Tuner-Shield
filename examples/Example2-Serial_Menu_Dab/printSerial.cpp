@@ -13,6 +13,13 @@
 namespace serialPrintSi468x
 {
 
+void printFreeRam(const unsigned short freeRam)
+{
+  Serial.print(F("RAM: "));
+  Serial.println(freeRam);
+  Serial.println();
+}
+
 void printVersion(const char version[])
 {
   Serial.println(F("Version Info"));
@@ -448,6 +455,23 @@ void dabPrintFrequencyTable(const unsigned long frequencyTable[], const unsigned
   Serial.println();
 }
 
+//Print frequency table
+void dabPrintFrequencyTable(const frequencyTableHeader_t frequencyTableHeader)
+{
+  char string[20];
+
+  Serial.println(F("Frequency Table"));
+  Serial.print(F("Number:  "));
+  Serial.println(frequencyTableHeader.number);
+
+  for (unsigned char i = 0; i < frequencyTableHeader.number; i++)
+  {
+    snprintf(string, 20, "%2u : %6lu kHz", i , frequencyTableHeader.table[i]) ;
+    Serial.println(string);
+  }
+  Serial.println();
+}
+
 //Print index
 void dabPrintIndex(unsigned char index)
 {
@@ -704,7 +728,7 @@ void dabPrintMenuTechnical()
   //Print General Menu
   dabPrintMenu();
   Serial.println(F("v: Event Info"));
-  Serial.println(F("a: Audio Info"));
+  Serial.println(F("A: Audio Info"));
   Serial.println(F("x: Technical Info"));
   Serial.println(F("#: Date and Time"));
   Serial.println(F("o: Component Info"));
