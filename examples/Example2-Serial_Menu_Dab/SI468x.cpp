@@ -531,7 +531,6 @@ unsigned char readSystemState()
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
 void readPowerUpArguments(powerUpArguments_t &powerUpArguments)
 {
-
   unsigned char buf[18] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   unsigned char cmd[2];
@@ -576,57 +575,9 @@ bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset)
     (uint8_t)(offset & 0xff),
     (uint8_t) (offset >> 8)
   };
-
-  uint8_t cmd2[1] = {READ_REPLY};
-
   writeCommand(cmd, sizeof(cmd));
 
-  //retry until maxRetry
-  for (uint8_t retry = 0; retry < MAX_RETRY; retry++)
-  {
-    ///wait for device - to be improved
-    delayMicroseconds(DURATION_REPLY_OFFSET);
-    delayMicroseconds(DURATION_REPLY_OFFSET);
-
-    //initalize reply to 0xff
-    for (uint8_t i = 0; i < len; i++) reply[i] = 0xff;
-
-    writeCommandArgument(cmd2, sizeof(cmd2), reply, len);
-
-    //Clear to send and no error then break loop
-    if ((((reply[0] >> 7) & 1) == 1) && (((reply[0] >> 6) & 1) == 0))
-    {
-      readResult = true;
-      //break loop
-      break;
-    }
-
-    //error
-    else if (((reply[0] >> 6) & 1) == 1 )
-    {
-      //if cmdErr read byte 5 of reply
-      unsigned char errBuf[5] = {0xff, 0xff, 0xff, 0xff, 0xff};
-      writeCommandArgument(cmd, sizeof(cmd), errBuf, sizeof(errBuf));
-      serialPrintSi468x::printResponseHex(errBuf, sizeof(errBuf));
-
-      readResult = false;
-      //break loop
-      break;
-    }
-
-    //too many reads
-    else if (retry == MAX_RETRY - 1)
-    {
-      readResult = false;
-      //break loop
-      break;
-    }
-
-    else
-    {
-      readResult = false;
-    }
-  }
+  readResult = readReply(reply, len);
 
   return readResult;
 }
@@ -767,19 +718,16 @@ unsigned short readRssi()
 ensembleHeader_t ensembleHeader = {0, 0, 0, 0, 0, nullptr};
 
 //Frequency table - dynamic memory allocation
-long unsigned* frequencyTable = nullptr;
-
 frequencyTableHeader_t frequencyTableHeader = {0, nullptr};
 
-//Table of valid frequencies
-unsigned char* dabValidIndexList = nullptr;
-//Number of valid indices
-unsigned char dabNumValidIndex = 0;
+//valid indices after bandscan
+indexListHeader_t indexListHeader = {0, nullptr};
+
 
 //Actual index
-//unsigned char dabIndex = 2;//CHAN_5C = 178352;//DR Deutschland
-unsigned char dabIndex = 25; //CHAN_11A = 216928;//SWR RP
-//unsigned char dabIndex = 28; //CHAN_11D = 220352;//DR Hessen
+//unsigned char index = 2;//CHAN_5C = 178352;//DR Deutschland
+unsigned char index = 25; //CHAN_11A = 216928;//SWR RP
+//unsigned char index = 28; //CHAN_11D = 220352;//DR Hessen
 
 //Actual Digital Service
 //sunshine live
@@ -935,7 +883,7 @@ void dabBegin()
   writePropertyValueList(propertyValueListDab, NUM_PROPERTIES_DAB);
 
   //Tunes DAB inital index
-  tuneIndex(dabIndex);
+  tuneIndex(index);
   //Starts inital audio service
   startService(serviceId, componentId);
 
@@ -1639,7 +1587,6 @@ void tuneIndex(unsigned char index, unsigned short varCap, unsigned char injecti
     }
   }
   Serial.println();
-
 }
 
 //0xB2 DAB_DIGRAD_STATUS Get status information about the received signal quality
@@ -1800,69 +1747,6 @@ void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned ch
 }
 
 //0xB9 DAB_GET_FREQ_LIST Get frequency table
-unsigned long* readFrequencyTable()
-{
-  //free memory from previous table
-  if (frequencyTable != nullptr)
-  {
-    delete[]frequencyTable;
-    frequencyTable = nullptr;
-  }
-
-  //read number of frequencies
-  unsigned char numberFrequencies;
-  readNumberFrequencies(numberFrequencies);
-
-  //Dynamically allocate memory
-  frequencyTable = new uint32_t[numberFrequencies];
-  //Error
-  if (frequencyTable == nullptr) return nullptr;
-
-  uint8_t cmd[2]  = {DAB_GET_FREQ_LIST, 0};
-  //4 Statusbytes + 4 Bytes from command DAB_GET_FREQ_LIST
-  uint8_t freq[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(10000);
-
-  //Fill index table
-  //Start reading 4 Bytes per frequency
-  //OFFSET parameter must be modulo four
-  uint16_t offset = 0;
-  readReplyOffset(freq, sizeof(freq), offset);
-
-  for (uint8_t i = 0; i < numberFrequencies; i++)
-  {
-    offset = offset + 4 ; //increase offset to next frequency
-    readReplyOffset(freq, sizeof(freq), offset);
-
-    frequencyTable[i] = (uint32_t) freq[7] << 24 | (uint32_t) freq[6] << 16 | (uint32_t) freq[5] << 8 | freq[4];
-
-    //initalize for next frequency
-    for (uint8_t j = 0;  j < 8; j++) freq[j] = 0xff;
-  }
-
-  return  frequencyTable;
-}
-
-//0xB9 DAB_GET_FREQ_LIST Read number of indices
-void readNumberFrequencies(unsigned char& numberIndices)
-{
-  unsigned char cmd[2]  = {DAB_GET_FREQ_LIST, 0};
-  unsigned char buf[12] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
-  writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(DURATION_10000_MIKROS);
-  readReply(buf, sizeof(buf));
-
-  //save number of frequencies in table
-  numberIndices = buf[4];
-
-  //Validity ?
-  if (numberIndices > MAX_INDEX) numberIndices = 0;
-}
-
-
-//0xB9 DAB_GET_FREQ_LIST Get frequency table
 void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader)
 {
   //free memory from previous table
@@ -1878,39 +1762,54 @@ void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader)
   uint8_t buf[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   //read number of frequencies
-  readNumberFrequencies(frequencyTableHeader.number);
+  writeCommand(cmd, sizeof(cmd));
+  delayMicroseconds(DURATION_10000_us);
+  readReply(buf, sizeof(buf));
 
-  //Dynamically allocate memory
-  frequencyTableHeader.table = new uint32_t[frequencyTableHeader.number];
+  //save number of frequencies in table
+  frequencyTableHeader.number = buf[4];
 
-  //Error
-  if (frequencyTableHeader.table == nullptr)
+  //Validity ?
+  if (frequencyTableHeader.number > MAX_INDEX)
   {
     frequencyTableHeader.number = 0;
-    return nullptr;
   }
 
-
-  writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(DURATION_10000_MIKROS);
-
-  //Fill index table
-  //Start reading 4 Bytes per frequency
-  //OFFSET parameter must be modulo four
-  uint16_t offset = 0;
-  //readReplyOffset(buf, sizeof(buf), offset);
-
-  for (uint8_t i = 0; i < frequencyTableHeader.number; i++)
+  //numberFrequencies ok !
+  else
   {
-    offset = offset + 4 ; //increase offset to next frequency
-    readReplyOffset(buf, sizeof(buf), offset);
-    delayMicroseconds(DURATION_10000_MIKROS);
-    frequencyTableHeader.table[i] = (uint32_t) buf[7] << 24 | (uint32_t) buf[6] << 16 | (uint32_t) buf[5] << 8 | buf[4];
+    //Dynamically allocate memory
+    frequencyTableHeader.table = new uint32_t[frequencyTableHeader.number];
 
-    //initalize for next frequency
-    for (uint8_t j = 0;  j < 8; j++) buf[j] = 0xff;
-  }
+    //Error
+    if (frequencyTableHeader.table == nullptr)
+    {
+      frequencyTableHeader.number = 0;
+    }
+    //Dynamically allocate memory ok !
+    else
+    {
+      writeCommand(cmd, sizeof(cmd));
+      delayMicroseconds(DURATION_10000_us);
 
+      //Fill index table
+      //Start reading 4 Bytes per frequency
+      //OFFSET parameter must be modulo four
+      uint16_t offset = 0;
+      //readReplyOffset(buf, sizeof(buf), offset);
+
+      for (uint8_t i = 0; i < frequencyTableHeader.number; i++)
+      {
+        offset = offset + 4 ; //increase offset to next frequency
+        readReplyOffset(buf, sizeof(buf), offset);
+
+        frequencyTableHeader.table[i] = (uint32_t) buf[7] << 24 | (uint32_t) buf[6] << 16 | (uint32_t) buf[5] << 8 | buf[4];
+
+        //initalize for next frequency
+        for (uint8_t j = 0;  j < 8; j++) buf[j] = 0xff;
+      }//for
+    }//else
+  }//else
 }
 
 //0xBB DAB_GET_COMPONENT_INFO Get information about the component application data
@@ -2112,7 +2011,6 @@ void readFrequencyInformationTable(frequencyInformationTableHeader_t& frequencyI
 
   writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(10000);
-  delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 
   serialPrintSi468x::printResponseHex(buf, sizeof(buf));
@@ -2154,8 +2052,8 @@ void readServiceInformation(serviceInformation_t& serviceInformation, unsigned l
   arg[6] = serviceId >> 24 & 0xFF;
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-  delayMicroseconds(DURATION_10000_ms);
-  delayMicroseconds(DURATION_10000_ms);
+  delayMicroseconds(DURATION_10000_us);
+  delayMicroseconds(DURATION_10000_us);
   readReply(buf, sizeof(buf));
 
   //serviceInfo1
@@ -2180,62 +2078,63 @@ void readServiceInformation(serviceInformation_t& serviceInformation, unsigned l
 }
 
 
-//Scan all indices of frequency table
-bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTable)
+void scanIndices(indexListHeader_t& indexListHeader)
 {
-  /*free memory from previous table*/
-  free(dabValidFreqTable);
-  /*Set pointer to nullptr*/
-  dabValidFreqTable = nullptr;
-  /*Set to valid frequencies = 0*/
-  dabValidNumFreq = 0;
+  //free memory from previous table
+  delete[]indexListHeader.indexList;
+  indexListHeader.indexList = nullptr;
+  indexListHeader.size = 0;
 
-  //To get receive signal quality
-  rsqInformation_t rsqInformation;
 
-  //Get actual frequency table
-  //unsigned long* frequencyTable readFrequencyTable();
+  //get actual number of indices to scan from frequencyList
+  readFrequencyTable(frequencyTableHeader);
+  uint8_t numberIndices = frequencyTableHeader.number;
+  //number of valid indices found
+  uint8_t numberIndicesValid = 0;
 
-  unsigned char numberIndices;
-  readNumberFrequencies(numberIndices);
+  Serial.print(F("numberIndices: "));
+  Serial.println(numberIndices);
 
-  //Scan trough index table - start with index 0
-  for (unsigned char index = 0; index < numberIndices; index++)
+  //Scan trough indices - start with index 0
+  for (unsigned char i = 0;  i < numberIndices; i++)
   {
-    tuneIndex(index);
+    tuneIndex(i);
+
+    rsqInformation_t rsqInformation;
     //Check receive signal quality
     readRsqInformation(rsqInformation);
 
-    //DAB found and valid save The threshold for dab detected is greater than 4.
+    //DAB found and valid save. The threshold for dab detected is greater than 4.
     if ((rsqInformation.fastDect > 4) && rsqInformation.valid)
     {
-      //serialPrintSi468x::dabPrintIndex(index);
-      //increase memory allocation, in C use type cast for realloc to supress warning of void*. Start with dabValidNumFreq + 1
-      dabValidFreqTable = (unsigned char*) realloc(dabValidFreqTable, (dabValidNumFreq + 1) * sizeof(unsigned char));
+      //increase memory allocation, in C use type cast for realloc to supress warning of void*. Start with +1
+      indexListHeader.indexList = (indexList_t*) realloc(indexListHeader.indexList, (numberIndicesValid + 1) * sizeof(indexList_t));
+
       //write valid index in list
-      dabValidFreqTable[dabValidNumFreq] = index;
+      indexListHeader.indexList[numberIndicesValid].index = rsqInformation.index;
+      indexListHeader.indexList[numberIndicesValid].valid = 1;
+      indexListHeader.indexList[numberIndicesValid].frequency = rsqInformation.frequency;
+
       //increase valid frequencies
-      dabValidNumFreq++;
+      numberIndicesValid++;
     }
   }
+
+  indexListHeader.size = numberIndicesValid;
+
   //If no valid frequency found return
-  if (dabValidNumFreq == 0)
+  if (numberIndicesValid == 0)
   {
-    //free memory from previous malloc
-    free(dabValidFreqTable);
-    //Set pointer to nullptr
-    dabValidFreqTable = nullptr;
-    //Set to valid frequencies = 0
-    dabValidNumFreq = 0;
+    delete[]indexListHeader.indexList;
+    indexListHeader.indexList = nullptr;
+    indexListHeader.size = 0;
 
-    return false;
+    return;
   }
-
-  return true;
 }
 
 //Tune index up/down
-void tune(unsigned char &dabIndex, bool up)
+void tune(unsigned char &index, bool up)
 {
   //read actual index
   rsqInformation_t rsqInformation;
@@ -2243,9 +2142,10 @@ void tune(unsigned char &dabIndex, bool up)
 
   //remember actual index
   uint8_t indexStart = rsqInformation.index;
+
   //get actual number of indices
-  uint8_t numberIndices;
-  readNumberFrequencies(numberIndices);
+  readFrequencyTable(frequencyTableHeader);
+  uint8_t numberIndices = frequencyTableHeader.number;
 
   if (up)
   {
@@ -2268,5 +2168,5 @@ void tune(unsigned char &dabIndex, bool up)
   //read result
   readRsqInformation(rsqInformation);
 
-  dabIndex = rsqInformation.index;
+  index = rsqInformation.index;
 }

@@ -69,14 +69,12 @@ void dabPrintComponentTechnicalInformation(componentTechnicalInformation_t& comp
 void printComponentInformation(componentInformation_t& componentInformation);
 //Print Service ID and Component ID
 void dabPrintIds(unsigned long serviceId, unsigned long componentId);
+//Print frequency list
+void dabPrintFrequencyTable(frequencyTableHeader_t frequencyTableHeader);
 
-//Print frequency table
-void dabPrintFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
-//Print frequency table
-void dabPrintFrequencyTable(const frequencyTableHeader_t frequencyTableHeader);
+//Print index list
+void dabPrintIndexList(const indexListHeader_t& indexListHeader);
 
-//Print valid index list
-void dabPrintValidIndexList(unsigned char dabNumValidIndex, unsigned char dabValidIndexList[]);
 //Print index
 void dabPrintIndex(unsigned char index);
 //Print DAB frequency

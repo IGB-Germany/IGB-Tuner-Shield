@@ -437,32 +437,18 @@ void dabPrintFrequency(unsigned long frequency)
   Serial.print(F(" kHz\n"));
 }
 
-
-//Print frequency table
-void dabPrintFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq)
+//Print index
+void dabPrintIndex(unsigned char index)
 {
-  char string[20];
-
-  Serial.println(F("Frequency Table"));
-  Serial.print(F("Number:  "));
-  Serial.println(numFreq);
-
-  for (unsigned char j = 0; j < numFreq; j++)
-  {
-    snprintf(string, 20, "%2u : %6lu kHz", j , frequencyTable[j]) ;
-    Serial.println(string);
-  }
-  Serial.println();
+  Serial.print(F("Index:\t"));
+  Serial.println(index);
 }
 
-//Print frequency table
-void dabPrintFrequencyTable(const frequencyTableHeader_t frequencyTableHeader)
+//Print frequency list
+void dabPrintFrequencyTable(frequencyTableHeader_t frequencyTableHeader)
 {
   char string[20];
-
-  Serial.println(F("Frequency Table"));
-  Serial.print(F("Number:  "));
-  Serial.println(frequencyTableHeader.number);
+  Serial.println(F("Frequency List"));
 
   for (unsigned char i = 0; i < frequencyTableHeader.number; i++)
   {
@@ -472,29 +458,30 @@ void dabPrintFrequencyTable(const frequencyTableHeader_t frequencyTableHeader)
   Serial.println();
 }
 
-//Print index
-void dabPrintIndex(unsigned char index)
+//Print index list
+void dabPrintIndexList(const indexListHeader_t& indexListHeader)
 {
-  Serial.print(F("Index:\t"));
-  Serial.println(index);
-}
-
-//Print valid index list
-void dabPrintValidIndexList(unsigned char dabNumValidIndex, unsigned char dabValidIndexList[])
-{
-  Serial.println(F("Valid Index List:"));
-  Serial.println();
-
-  for (unsigned char j = 0; j < dabNumValidIndex; j++)
+  if ( indexListHeader.size == 0)
   {
-    Serial.print(F("Valid Index "));
-    Serial.print(j);
-    Serial.print(F(" :"));
-    Serial.println(dabValidIndexList[j]);
+    Serial.println(F("Index List empty"));
+  }
+  else
+  {
+    char string[11];
+    Serial.println(F("Index List"));
+    for (unsigned char i = 0; i < indexListHeader.size; i++)
+    {
+      Serial.print(F("Number: "));
+      Serial.print(i);
+      Serial.print(F("\tIndex: "));
+      Serial.print(indexListHeader.indexList[i].index);
+      Serial.print(F("\tFrequency: "));
+      snprintf(string, 11, "%6lu kHz", indexListHeader.indexList[i].frequency) ;
+      Serial.println(string);
+    }
   }
   Serial.println();
 }
-
 
 //Prints information about the digital service
 void dabPrintDigitalServiceInformation(serviceInformation_t& dabServiceInfo)
@@ -734,7 +721,8 @@ void dabPrintMenuTechnical()
   Serial.println(F("o: Component Info"));
   Serial.println(F("i: Frequency List"));
   Serial.println(F("t: Test Varactor"));
-  Serial.println(F("r: RSSI"));
+  Serial.println(F("R: RSSI"));
+  Serial.println(F("W: Front End Switch"));
   Serial.println(F("p: Properties DAB"));
   Serial.println();
 }
@@ -743,11 +731,10 @@ void dabPrintMenuTechnical()
 void dabPrintMenuScanFrequency()
 {
   Serial.println(F("Menu Scan Frequency"));
-  Serial.println(F("f: Get Frequency Table"));
+  Serial.println(F("0: Get Frequency Table"));
   Serial.println(F("1: Set Standard Table"));
   Serial.println(F("2: Set Table 2"));
   Serial.println(F("3: Set Table 3"));
-  Serial.println(F("h: Service List Header"));
   Serial.println();
   Serial.println(F("l: Index Up"));
   Serial.println(F("k: Index Down"));

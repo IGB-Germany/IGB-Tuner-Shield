@@ -31,8 +31,9 @@
 
 /*
   Changelog
-  Changed: unsigned long* readFrequencyTable() 
-  Changed: use parameters per reference& in functions to save memory - open
+  Changed: readFrequencyTable(), writeFrequencyTable
+  Changed: getIndexTable(), setIndexTable()
+
   Changed: use write/read and get/set in function names - open
   Changed: uint8_t etc. datatypes - open
   New: create namespaces like driverSi468x to avoid conflicts - open
@@ -40,7 +41,6 @@
   loadFirmware works only with 0x100 because of flash (pagewise)- open
   readStorage() handle first 4 bytes of answer - open
 
-  Changed: readServiceInformation() delayMicroseconds tbd - open
   New: readFrequencyInformationTable()- open
   Changed: use interrupt not delayMicroseconds in functions - open
   New: componentInformation_t userAppData - open
@@ -48,7 +48,9 @@
   New: use onboard flash for program types string - open
   New: use onboard flash/firmware location for different data like favorites, properties, program type - open
   New: linkageSegmentTable_t* linkageSegmentTable;//Table of linkage segments - open
-
+  
+  Changed: use delayMicroseconds instead of delay - done
+  Changed: use parameters per reference& in functions to save memory - done
   Changed: printSerial functions get struct parameters per reference to save memory - done
   Changed: readReply() and readReplyOffset() now returns true if correct read and not statusRegister_t - done
   Changed: replace delay by delayMicroseconds with for() loop - done
@@ -90,11 +92,11 @@ enum durationsDevice_t
   DURATION_RESET        = 5000,//3ms see flowchart; 5ms tRSTB_HI see timing
   DURATION_POWER_UP     = 3000,//20us see flowchart; 3ms tPOWER_UP see timing
   DURATION_REPLY        = 3000,//?ms see flowchart; 1 ms see timing CTS polls @ 1 ms; tested 2500us
-  DURATION_REPLY_OFFSET = 10000,//
   DURATION_LOAD_INIT    = 4000,//4ms see flowchart; ?ms see timing
   DURATION_BOOT         = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
   DURATION_PROPERTY     = 10000,//write / read PropertyValue
-  DURATION_10000_ms     = 10000
+  DURATION_5000_us      = 5000,
+  DURATION_10000_us     = 10000
 };
 
 //Status register 22 Bits, 3 Bytes
@@ -189,6 +191,7 @@ void readPartInfo(partInfo_t& partInfo);
 unsigned char readSystemState();
 //0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
 void readPowerUpArguments(powerUpArguments_t &powerUpArguments);
+
 //0x10 READ_OFFSET Reads a portion of the response buffer (not the status)from an offset
 //statusRegister_t readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
 bool readReplyOffset(uint8_t reply[], uint16_t len, uint16_t offset);
@@ -492,6 +495,27 @@ struct frequencyInformationTableHeader_t
   frequencyInformationTable_t* frequencyInformationTable;
 };
 
+struct frequencyTableHeader_t
+{
+    uint8_t number;
+    uint32_t* table;
+};
+
+//valid indices after bandscan
+struct indexList_t
+{
+      uint8_t index;//Max 47
+      uint8_t valid;
+      uint32_t frequency;
+};
+
+struct indexListHeader_t
+{
+    uint8_t size;
+    indexList_t* indexList;
+};
+
+
 //DAB specific delay times
 enum durationsDab_t
 {
@@ -512,12 +536,10 @@ enum constantsDab_t
 };
 
 //Callback function pointer
-void (callback_fp)(void);
-
-void setCallback(void (*ServiceData)(void));
+//void (callback_fp)(void);
+//void setCallback(void (*ServiceData)(void));
 //runs continuously
-void eventHandler(void);
-
+//void eventHandler(void);
 
 //Global variables
 
@@ -525,35 +547,21 @@ void eventHandler(void);
 extern unsigned long serviceId;
 //Actual Digital Component
 extern unsigned long componentId;
-
 //Actual index
-extern unsigned char dabIndex;
-//Number of valid indices
-extern unsigned char dabNumValidIndex;
-//Table of valid frequencies
-extern unsigned char* dabValidIndexList;
-
-/*
-    uint8_t               _scannedIndexListSize;//Number of scanned valid indices
-    uint8_t*              _scannedIndexList;//Pointer to table of scanned valid indices
-    uint8_t               _positionScannedIndexList;//Position in table
-*/
-
-//Frequency table - dynamic memory allocation
-extern long unsigned* frequencyTable;
-
-extern struct frequencyTableHeader_t
-{
-    uint8_t number;
-    uint32_t* table;
-} frequencyTableHeader;
-
+extern uint8_t index;
 
 //Property value list DAB
 extern unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2];
 
-//Ensemble dynamic allocation
+//Ensemble - dynamic allocation
 extern struct ensembleHeader_t ensembleHeader;
+
+//Frequency table - dynamic allocation
+extern struct frequencyTableHeader_t frequencyTableHeader;
+
+//valid indices after bandscan
+extern indexListHeader_t indexListHeader;
+
 
 //DAB functions
 //Constructor
@@ -575,10 +583,10 @@ bool searchService(unsigned long &serviceId, unsigned long &componentId);
 void startFirstService(unsigned long &serviceId, unsigned long &componentId, unsigned char serviceType = 0);
 
 //Scan all indices of frequency table
-bool dabBandScan(unsigned char &dabValidNumFreq, unsigned char* &dabValidFreqTable);
+void scanIndices(indexListHeader_t& indexListHeader);
 
 //Tune up = true/down = false
-void tune(unsigned char &dabIndex, bool up = true);
+void tune(unsigned char& index, bool up = true);
 
 //0x81 START_DIGITAL_SERVICE Starts an audio or data service
 void startService(const unsigned long& serviceId, const unsigned long& componentId, const unsigned char serviceType = 0);
@@ -598,11 +606,7 @@ void readEnsembleInformation(ensembleInformation_t& ensembleInformation);
 void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformation, unsigned long &serviceId);
 //0xB8 DAB_SET_FREQ_LIST Set frequency table
 void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned char numFreq);
-//0xB9 DAB_GET_FREQ_LIST Read number of indices
-void readNumberFrequencies(unsigned char& numberIndices);
 
-//0xB9 DAB_GET_FREQ_LIST Get frequency table
-unsigned long* readFrequencyTable();
 //0xB9 DAB_GET_FREQ_LIST Get frequency table
 void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader);
 
@@ -632,13 +636,14 @@ enum COMMANDS_DEVICE
   GET_PART_INFO     = 0x08,//0x08 GET_PART_INFO Reports basic information about the device
   GET_SYS_STATE     = 0x09,//0x09 GET_SYS_STATE Reports system state information
   GET_POWER_UP_ARGS = 0x0A,//0x0A GET_POWER_UP_ARGS Reports basic information about the device such as arguments used during POWER_UP
-  READ_OFFSET       = 0x10,//0x10 READ_OFFSET Reads a portion of response buffer from an offset.
+  
+  READ_OFFSET       = 0x10,//0x10 READ_OFFSET Reads a portion of response buffer from an offset
 
   GET_FUNC_INFO     = 0x12,//0x12 GET_FUNC_INFO Returns the Function revision information of the device
   SET_PROPERTY      = 0x13,//0x13 SET_PROPERTY Sets the value of a property
   GET_PROPERTY      = 0x14,//0x14 GET_PROPERTY Retrieve the value of a property
-  WRITE_STORAGE     = 0x15,//0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset.
-  READ_STORAGE      = 0x16,//0x16 READ_STORAGE Reads data from the
+  WRITE_STORAGE     = 0x15,//0x15 WRITE_STORAGE Writes data to the on board storage area at a specified offset
+  READ_STORAGE      = 0x16,//0x16 READ_STORAGE Reads data from the on board storage area at a specified offset
 
   TEST_GET_RSSI     = 0xE5,//0xE5 TEST_GET_RSSI Returns the reported RSSI in 8.8 format.
 };
@@ -696,7 +701,7 @@ enum VHF_Band_III
   CHAN_8C = 199360,//Mittelfranken
   CHAN_8D = 201072,
   CHAN_9A = 202928,
-  CHAN_9B = 204640,
+  CHAN_9B = 204640,//ANTENNE DE
   CHAN_9C = 206352,
   CHAN_9D = 208064,
   CHAN_10A = 209936,
@@ -723,7 +728,7 @@ enum VHF_Band_III
 };
 
 //MAX_INDEX = 48
-const unsigned long frequencyTableDefault[41] =
+const unsigned long FREQ_TABLE_DEFAULT[41] =
 {
   CHAN_5A, CHAN_5B, CHAN_5C, CHAN_5D,
   CHAN_6A, CHAN_6B, CHAN_6C, CHAN_6D,
@@ -736,31 +741,39 @@ const unsigned long frequencyTableDefault[41] =
   CHAN_13A, CHAN_13B, CHAN_13C, CHAN_13D, CHAN_13E, CHAN_13F
 };
 
-const unsigned long frequencyTableNrw[] =    {CHAN_5C, CHAN_11D};
-const unsigned long frequencyTableBayern[] = {CHAN_5C, CHAN_12D, CHAN_11D, CHAN_9C, CHAN_10C, CHAN_11A, CHAN_11C, CHAN_12A, CHAN_6A};
-const unsigned long frequencyTableBw[] =     {CHAN_5C, CHAN_8D, CHAN_9D, CHAN_11B};
-const unsigned long frequency_list_bb[] =     {CHAN_5C, CHAN_7B, CHAN_7D};
-const unsigned long frequency_list_hb[] =     {CHAN_5C, CHAN_7B, CHAN_12A};
-const unsigned long frequency_list_hh[] =     {CHAN_5C, CHAN_7A};
-const unsigned long frequency_list_he[] =     {CHAN_5C, CHAN_7B, CHAN_11C};
-const unsigned long frequency_list_mv[] =     {CHAN_5C, CHAN_12B};
-const unsigned long frequency_list_ni[] =     {CHAN_5C, CHAN_6A, CHAN_6D, CHAN_11B, CHAN_12A};
 
-const unsigned long frequency_list_sl[] =     {CHAN_5C, CHAN_9A};
-const unsigned long frequency_list_sn[] =     {CHAN_5C, CHAN_6C, CHAN_8D, CHAN_9A, CHAN_12A};
-const unsigned long frequency_list_st[] =     {CHAN_5C, CHAN_11C, CHAN_12C};
-const unsigned long frequency_list_sh[] =     {CHAN_5C, CHAN_9C};
-const unsigned long frequency_list_th[] =     {CHAN_5C, CHAN_7B, CHAN_9C, CHAN_12B};
+//DE
+//ISO-3166-2 Codes
+const unsigned long FREQ_TABLE_EMPTY[]    = {CHAN_13F};
+const unsigned long FREQ_TABLE_DE[]    = {CHAN_5C, CHAN_9B};
+const unsigned long FREQ_TABLE_DE_BW[] = {CHAN_5C, CHAN_8D, CHAN_9D, CHAN_11B};
+const unsigned long FREQ_TABLE_DE_BY[] = {CHAN_5C, CHAN_12D, CHAN_11D, CHAN_9C, CHAN_10C, CHAN_11A, CHAN_11C, CHAN_12A, CHAN_6A};
+//const unsigned long FREQ_TABLE_DE_BE[]  = {CHAN_5C, CHAN_11A};
+const unsigned long FREQ_TABLE_DE_BB[] = {CHAN_5C, CHAN_7B, CHAN_7D};
+const unsigned long FREQ_TABLE_DE_HB[] = {CHAN_5C, CHAN_7B, CHAN_12A};
+const unsigned long FREQ_TABLE_DE_HH[] = {CHAN_5C, CHAN_7A};
+const unsigned long FREQ_TABLE_DE_HE[] = {CHAN_5C, CHAN_7B, CHAN_11C};
+const unsigned long FREQ_TABLE_DE_MV[] = {CHAN_5C, CHAN_12B};
+const unsigned long FREQ_TABLE_DE_NI[] = {CHAN_5C, CHAN_6A, CHAN_6D, CHAN_11B, CHAN_12A};
+const unsigned long FREQ_TABLE_DE_NW[] = {CHAN_5C, CHAN_11D};
+const unsigned long FREQ_TABLE_DE_RP[3] = {CHAN_5C, CHAN_9B, CHAN_11A};
+const unsigned long FREQ_TABLE_DE_SL[] = {CHAN_5C, CHAN_9A};
+const unsigned long FREQ_TABLE_DE_SN[] = {CHAN_5C, CHAN_6C, CHAN_8D, CHAN_9A, CHAN_12A};
+const unsigned long FREQ_TABLE_DE_ST[] = {CHAN_5C, CHAN_11C, CHAN_12C};
+const unsigned long FREQ_TABLE_DE_SH[] = {CHAN_5C, CHAN_9C};
+const unsigned long FREQ_TABLE_DE_TH[] = {CHAN_5C, CHAN_7B, CHAN_9C, CHAN_12B};
 
-const unsigned long frequency_list_ch[7] =     {CHAN_12A, CHAN_12C, CHAN_12D, CHAN_7D, CHAN_7A, CHAN_9D, CHAN_8B};
+//IT
+//ISO-3166-2 Codes
+const unsigned long FREQ_TABLE_IT[] = {CHAN_12A, CHAN_12B, CHAN_12C, CHAN_12D};
+const unsigned long FREQ_TABLE_IT_32[] = {CHAN_10B, CHAN_10C, CHAN_10D};//Trentino-Südtirol (Trentino-Alto Adige)  IT-32 
+const unsigned long FREQ_TABLE_IT_34[] = {CHAN_10B, CHAN_10C, CHAN_10D, CHAN_12A, CHAN_12B, CHAN_12C};//Venetien (Veneto)   IT-34 
 
-const unsigned long frequencyTableRheinlandPfalz[]  = {CHAN_5C, CHAN_11A};
+//CH
+const unsigned long FREQ_TABLE_CH[] =     {CHAN_12A, CHAN_12C, CHAN_12D, CHAN_7D, CHAN_7A, CHAN_9D, CHAN_8B};
 
-const unsigned long frequencyTableItalienRas[6]      = {CHAN_10B, CHAN_10C, CHAN_10D, CHAN_12A, CHAN_12B, CHAN_12C};
-
-const unsigned long frequencyTableItalienTrentino[2] = {CHAN_10A, CHAN_12D};
-
-const unsigned long frequencyTableUnitedKingdom[3] = {CHAN_11A, CHAN_11D, CHAN_12B};
+//UK
+const unsigned long FREQ_TABLE_UK[] = {CHAN_11A, CHAN_11D, CHAN_12B};
 
 
 //FM

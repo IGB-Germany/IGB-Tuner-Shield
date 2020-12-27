@@ -1,3 +1,4 @@
+
 /*Serial DAB Menu functions*/
 #include "dabMenuSerial.h"
 
@@ -163,20 +164,19 @@ void menuMain(char ch)
     serialPrintSi468x::dabPrintServiceData(serviceData);
   }
 
-
   //Start dedicated service in ensemble
   else if (ch == '1')
   {
     //CHAN_5C=178352
     //DR Deutschland
-    dabIndex = 2;
+    index = 2;
 
     //sunshine live
     serviceId = 0x15DC;
     componentId = 0x15;
 
     //Tunes DAB index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
   }
@@ -185,14 +185,14 @@ void menuMain(char ch)
   else if (ch == '2')
   {
     //ANTENNE DE
-    dabIndex = 17;
+    index = 17;
 
     //TOGGO 0x15DD, 0x16
     serviceId = 0x1298;
     componentId = 0x05;
 
     //Tunes DAB index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
   }
@@ -200,28 +200,28 @@ void menuMain(char ch)
   //Start dedicated service in ensemble
   else if (ch == '3')
   {
-    dabIndex = 25; //CHAN_11A = 216928;//SWR RP
+    index = 25; //CHAN_11A = 216928;//SWR RP
     //SWR3
     serviceId = 0xD3A3;
     componentId = 0x4;
     //Tunes DAB index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
   }
 
-
   //Start dedicated service in ensemble
   else if (ch == '4')
   {
+    //Hessen Süd
     //227360 kHz
-    dabIndex = 33;
-    //Joke FM
-    serviceId = 0x1464;
-    componentId = 0x18;
+    index = 33;
+    //Radio Teddy
+    serviceId = 0x1B2E;
+    componentId = 0x2;
 
     //Tunes DAB index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
   }
@@ -230,13 +230,13 @@ void menuMain(char ch)
   else if (ch == '5')
   {
     //190640 kHz
-    dabIndex = 9;
+    index = 9;
     //hr-iNFO
     serviceId = 0xD367;
     componentId = 0x4;
 
     //Tunes DAB index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
   }
@@ -341,6 +341,215 @@ void menuScanEnsemble(char ch)
 }
 
 
+
+void menuScanFrequency(char ch)
+{
+  if (ch == '?' || ch == 'F' || displayMenu)
+  {
+    //Print DAB Menu Scan
+    serialPrintSi468x::dabPrintMenuScanFrequency();
+    //Hide menu
+    displayMenu = false;
+  }
+
+  //Get Frequency Table
+  else if (ch == '0')
+  {
+    readFrequencyTable(frequencyTableHeader);
+
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
+  }
+
+  //Set Frequency Table
+  else if (ch == '1')
+  {
+    //Set the frequency table
+    writeFrequencyTable(FREQ_TABLE_DEFAULT, 41);
+    readFrequencyTable(frequencyTableHeader);
+
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
+  }
+
+  //Set Frequency Table
+  else if (ch == '2')
+  {
+    //Set the frequency table
+    writeFrequencyTable(FREQ_TABLE_DE_RP, 3);
+    readFrequencyTable(frequencyTableHeader);
+
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
+  }
+
+  //Set Frequency Table
+  else if (ch == '3')
+  {
+    //Set the frequency table
+    writeFrequencyTable(FREQ_TABLE_EMPTY, 1);
+    readFrequencyTable(frequencyTableHeader);
+
+    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
+    serialPrintSi468x::printFreeRam(getFreeRam());
+  }
+
+  //index Up
+  else if (ch == 'l')
+  {
+    tune(index, true);
+    Serial.println(index);
+  }
+
+  //index down
+  else if (ch == 'k')
+  {
+    tune(index, false);
+    Serial.println(index);
+  }
+
+  //Scan Index Up
+  else if (ch == '.')
+  {
+    //remember start index
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
+    unsigned char indexStart = rsqInformation.index;
+
+    do
+    {
+      //tune index up
+      tune(index, true);
+
+      //get receive quality
+      readRsqInformation(rsqInformation);
+      Serial.print(F("Index:\t"));
+      Serial.println(rsqInformation.index);
+
+      //DAB found and valid if threshold for dab detected and greater than 4
+      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
+      {
+        Serial.println(F("Valid index found"));
+        index = rsqInformation.index;
+        Serial.println(index);
+        break;
+      }
+      //around
+      else if (rsqInformation.index == indexStart)
+      {
+        Serial.println(F("Nothing found"));
+        //nothing found
+        index = rsqInformation.index;
+        Serial.println(index);
+        break;
+      }
+    }
+    while (rsqInformation.index != indexStart);
+  }
+
+  //Scan Index Down
+  else if (ch == ',')
+  {
+    //remember start index
+    rsqInformation_t rsqInformation;
+    readRsqInformation(rsqInformation);
+    unsigned char indexStart = rsqInformation.index;
+
+    do
+    {
+      //tune index down
+      tune(index, false);
+
+      //get receive quality
+      readRsqInformation(rsqInformation);
+      Serial.print(F("Index:\t"));
+      Serial.println(rsqInformation.index);
+
+      //DAB found and valid if threshold for dab detected and greater than 4
+      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
+      {
+        Serial.println(F("Valid index found"));
+        index = rsqInformation.index;
+        Serial.println(index);
+        break;
+      }
+      //around
+      else if (rsqInformation.index == indexStart)
+      {
+        Serial.println(F("Nothing found"));
+        //nothing found
+        index = rsqInformation.index;
+        Serial.println(index);
+        break;
+      }
+    }
+    while (rsqInformation.index != indexStart);
+  }
+
+  //Bandscan
+  else if (ch == 's')
+  {
+    scanIndices(indexListHeader);
+    serialPrintSi468x::dabPrintIndexList(indexListHeader);
+
+    if (indexListHeader.indexList != nullptr)
+    {
+      //Set index to first entry in scanned table
+      index = indexListHeader.indexList[0].index;
+      Serial.println(F("Index: "));
+      Serial.println(index);
+      tuneIndex(index);
+
+     
+      eventInformation_t eventInformation;
+      //wait for ensemble list available
+      for(uint8_t i = 0; i < 10; i++)
+      {
+        readEventInformation(eventInformation);
+        delay(1000);
+        Serial.println(F("Wait..."));
+        if(eventInformation.serviceListAvailable == 1) break;
+      }
+
+      if (eventInformation.serviceListAvailable == 1)
+      {
+        getEnsemble(ensembleHeader);
+        serialPrintSi468x::dabPrintEnsemble(ensembleHeader);
+        //startfirstService
+      }
+      else
+      {
+        serialPrintSi468x::printError(2);
+      }
+    }
+    serialPrintSi468x::printFreeRam(getFreeRam());
+  }
+
+  //Get Valid Index List
+  else if (ch == 'i')
+  {
+    serialPrintSi468x::dabPrintIndexList(indexListHeader);
+  }
+
+  //Tune valid index (frequency) up
+  else if (ch == '+')
+  {
+
+  }
+
+  //Tune valid index (frequency) down
+  else if (ch == '-')
+  {
+
+
+  }
+
+  else
+  {
+    //nothing
+  };
+}
+
 //Menu Technical
 void menuTechnical(char ch)
 {
@@ -424,7 +633,7 @@ void menuTechnical(char ch)
     {
       frequencyInformationTableHeader_t frequencyInformationTableHeader;
       readFrequencyInformationTable(frequencyInformationTableHeader);
-      
+
       serialPrintSi468x::printFrequencyInformation(frequencyInformationTableHeader);
     }
     else
@@ -437,7 +646,7 @@ void menuTechnical(char ch)
   else if (ch == 't')
   {
     //Test varactor tuning capacitor
-    testVaractorCap(dabIndex);
+    testVaractorCap(index);
   }
 
   //Read And Print RSSI
@@ -451,6 +660,30 @@ void menuTechnical(char ch)
       serialPrintSi468x::printRssi(readRssi());
     }
   }
+
+  //Close or Open Front End Switch;
+  else if (ch == 'W')
+  {
+    //0x1712 DAB_TUNE_FE_CFG Configure VHFSW switch from open to close
+    //VHFSW sets the open or closed state for the front end switch.
+    //0 : Switch Open
+    //1 : Switch Closed Default
+    uint8_t frontEndSwitch = 1;
+    frontEndSwitch = readPropertyValue(DAB_TUNE_FE_CFG);
+    if (frontEndSwitch == 1)
+    {
+      frontEndSwitch = 0;
+      writePropertyValue(DAB_TUNE_FE_CFG, frontEndSwitch);
+      Serial.println(F("Open"));
+    }
+    else
+    {
+      frontEndSwitch = 1;
+      writePropertyValue(DAB_TUNE_FE_CFG, frontEndSwitch);
+      Serial.println(F("Closed"));
+    }
+  }
+
 
   //Read and print properties
   else if (ch == 'p')
@@ -466,211 +699,6 @@ void menuTechnical(char ch)
 
 }//dabMenuTechnicalSerial()
 
-
-void menuScanFrequency(char ch)
-{
-  if (ch == '?' || ch == 'F' || displayMenu)
-  {
-    //Print DAB Menu Scan
-    serialPrintSi468x::dabPrintMenuScanFrequency();
-    //Hide menu
-    displayMenu = false;
-  }
-
-  //Print ensemble header
-  else if (ch == 'h')
-  {
-    getEnsembleHeader(ensembleHeader);
-    serialPrintSi468x::dabPrintEnsembleHeader(ensembleHeader);
-  }
-
-  //Print ensemble
-  else if (ch == 'p')
-  {
-    getEnsemble(ensembleHeader);
-    serialPrintSi468x::dabPrintEnsemble(ensembleHeader);
-  }
-
-  //Get Frequency Table
-  else if (ch == 'f')
-  {
-    readFrequencyTable(frequencyTableHeader);
-    
-    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
-    serialPrintSi468x::printFreeRam(getFreeRam());
-  }
-
-  //Set Frequency Table
-  else if (ch == '1')
-  {
-    //Set the frequency table
-    writeFrequencyTable(frequencyTableDefault, 41);
-    readFrequencyTable(frequencyTableHeader);
-    
-    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
-    serialPrintSi468x::printFreeRam(getFreeRam());
-  }
-
-  //Set Frequency Table
-  else if (ch == '2')
-  {
-    //Set the frequency table
-    writeFrequencyTable(frequencyTableRheinlandPfalz, 2);
-    readFrequencyTable(frequencyTableHeader);
-    
-    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
-    serialPrintSi468x::printFreeRam(getFreeRam());
-  }
-
-  //Set Frequency Table
-  else if (ch == '3')
-  {
-    //Set the frequency table
-    writeFrequencyTable(frequencyTableItalienRas, 5);
-    readFrequencyTable(frequencyTableHeader);
-    
-    serialPrintSi468x::dabPrintFrequencyTable(frequencyTableHeader);
-    serialPrintSi468x::printFreeRam(getFreeRam());
-  }
-
-  //index Up
-  else if (ch == 'l')
-  {
-    tune(dabIndex, true);
-    Serial.println(dabIndex);
-  }
-
-  //index down
-  else if (ch == 'k')
-  {
-    tune(dabIndex, false);
-    Serial.println(dabIndex);
-  }
-
-  //Scan Index Up
-  else if (ch == '.')
-  {
-    //remember start index
-    rsqInformation_t rsqInformation;
-    readRsqInformation(rsqInformation);
-    unsigned char indexStart = rsqInformation.index;
-
-    do
-    {
-      //tune index up
-      tune(dabIndex, true);
-
-      //get receive quality
-      readRsqInformation(rsqInformation);
-      Serial.print(F("Index:\t"));
-      Serial.println(rsqInformation.index);
-
-      //DAB found and valid if threshold for dab detected and greater than 4
-      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
-      {
-        Serial.println(F("Valid index found"));
-        dabIndex = rsqInformation.index;
-        Serial.println(dabIndex);
-        break;
-      }
-      //around
-      else if (rsqInformation.index == indexStart)
-      {
-        Serial.println(F("Nothing found"));
-        //nothing found
-        dabIndex = rsqInformation.index;
-        Serial.println(dabIndex);
-        break;
-      }
-    }
-    while (rsqInformation.index != indexStart);
-  }
-
-  //Scan Index Down
-  else if (ch == ',')
-  {
-    //remember start index
-    rsqInformation_t rsqInformation;
-    readRsqInformation(rsqInformation);
-    unsigned char indexStart = rsqInformation.index;
-
-    do
-    {
-      //tune index down
-      tune(dabIndex, false);
-
-      //get receive quality
-      readRsqInformation(rsqInformation);
-      Serial.print(F("Index:\t"));
-      Serial.println(rsqInformation.index);
-
-      //DAB found and valid if threshold for dab detected and greater than 4
-      if ((rsqInformation.fastDect > 4) && rsqInformation.valid == 1)
-      {
-        Serial.println(F("Valid index found"));
-        dabIndex = rsqInformation.index;
-        Serial.println(dabIndex);
-        break;
-      }
-      //around
-      else if (rsqInformation.index == indexStart)
-      {
-        Serial.println(F("Nothing found"));
-        //nothing found
-        dabIndex = rsqInformation.index;
-        Serial.println(dabIndex);
-        break;
-      }
-    }
-    while (rsqInformation.index != indexStart);
-  }
-
-  //Bandscan
-  else if (ch == 's')
-  {
-    //Bandscan
-    if (dabBandScan(dabNumValidIndex, dabValidIndexList))
-    {
-      //if at least one valid frequency found
-      //Print valid index list
-      serialPrintSi468x::dabPrintValidIndexList(dabNumValidIndex, dabValidIndexList);
-
-      //Set dabIndex to first valid entry in table
-      dabIndex = 0;
-      //Tune index
-      tuneIndex(dabValidIndexList[dabIndex]);
-    }
-  }
-
-  //Get Valid Index List
-  else if (ch == 'i')
-  {
-    //Is there a valid index ?
-    if (dabNumValidIndex != 0)
-    {
-      //Print valid frequency table
-      serialPrintSi468x::dabPrintValidIndexList(dabNumValidIndex, dabValidIndexList);
-    }
-  }
-
-  //Tune valid index (frequency) up
-  else if (ch == '+')
-  {
-
-  }
-
-  //Tune valid index (frequency) down
-  else if (ch == '-')
-  {
-
-
-  }
-
-  else
-  {
-    //nothing
-  };
-}
 
 
 void menuDevice(char ch)
@@ -760,7 +788,7 @@ void menuDevice(char ch)
     //Set DAB properties
     writePropertyValueList(propertyValueListDab, NUM_PROPERTIES_DAB);
     //Tunes DAB inital index
-    tuneIndex(dabIndex);
+    tuneIndex(index);
     //Starts inital audio service
     startService(serviceId, componentId);
   }
@@ -827,50 +855,51 @@ unsigned char volumeDown()
 }
 
 //Test varactor tuning capacitor
-void testVaractorCap(unsigned char index, unsigned char injection)
+void testVaractorCap(unsigned char& index, unsigned char injection)
 {
+  //0x1710 FM/DAB_TUNE_FE_-VARM Slope of Varactor vs Frequency Curve
+  //0x1711 FM/DAB_TUNE_FE_-VARB Intercept of Varactor vs Frequency Curve
+  //0x1712 FM/DAB_TUNE_FE_CFG Configure VHFSW switch from open to close
+
+  //measured rssi
   unsigned short rssi = 0;
-  /*max rssi*/
+  //max rssi
   unsigned short rssiMax = 0;
-  /*number of measurements*/
-  unsigned char numberVar = 129;
-  /*list of rssi measurments*/
-  unsigned short varCapList[numberVar] = {0};
+
+  unsigned char number = 129;
+  //list of rssi measurments
+  unsigned short varCapList[number] = {0};
 
   unsigned char varCapMax = 0;
 
-  //count all values from 0 ..128
-  for (unsigned char varCap = 0; varCap < numberVar; varCap++)
+  //count all values from 1...128
+  for (unsigned char i = 1; i < number; i++)
   {
     //Serial.print(F("Varactor capacity: "));
     //Serial.println(varCap);
     //Serial.print(((varCap - 1) * 0.25));
     //Serial.print(F("4.2f pF \n",(cap-1)*0.25);
     //31.75 pF Max
-    tuneIndex(index, varCap, injection);
+    tuneIndex(index, i, injection);
 
     rssi = readRssi();
 
-    /*save in list*/
-    varCapList[varCap] = rssi;
+    //save in list
+    varCapList[i] = rssi;
 
     //check if rssi better
     if (rssi > rssiMax)
     {
       //save new values
       rssiMax = rssi;
-      varCapMax = varCap;
+      varCapMax = i;
     }
-    //Serial.print(F("Rssi Avgerage: "));
-    Serial.print(varCap);
+    Serial.print(i);
     Serial.print(",");
-
-    //Serial.println(rssi / 256.00);
-    rssi = rssi >> 7;//shift 2^7
-    Serial.println(rssi);
-
+    Serial.println(rssi / 256.00);
+    //rssi = rssi >> 7;//shift 2^7
   }
-
+  //Summary
   Serial.println();
   Serial.print(F("Index:\t"));
   Serial.println(index);
