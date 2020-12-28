@@ -1,4 +1,4 @@
-/*Driver for SI468x Tuner*/
+//Driver for SI468x Tuner
 #include "SI468x.h"
 
 //To use serial monitor output application

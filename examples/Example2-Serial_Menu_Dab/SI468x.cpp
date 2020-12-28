@@ -1,7 +1,3 @@
-//Print detailed info about Ensemble
-#define DEBUG_DAB_PARSE_ENSEMBLE
-
-
 //Driver for tuner circuit SI468x by IGB
 #include "SI468x.h"
 
@@ -12,9 +8,11 @@
 #include "ComDriverSpi.h"
 ComDriverSpi tuner(PIN_DEVICE_SLAVE_SELECT, SPI_FREQUENCY);
 
-
 //flash functions
 #include "FlashSst26.h"
+//Create local object to use Flash Memory
+FlashSst26 flashSst26(PIN_FLASH_SLAVE_SELECT, SPI_FREQUENCY);
+
 //Serial Monitor Print Functions
 #include "printSerial.h"
 
@@ -158,38 +156,37 @@ void deviceBegin()
 //Loads data from Flash Memory into host and than into device
 void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware)
 {
-  //to measure time
-  //#define SPEED
-  //time for dab firmware 2224ms @ package 0x100, 8MHz
-
+  //to measure time to load firmware
+//#define SPEED
 #ifdef SPEED
   uint32_t start = millis();
   uint32_t zeit;
 #endif
-
+  //time for firmware 1683ms @ package 0x100, 8MHz
+  //time for firmware 1530ms @ package 0x300, 8MHz
+  
+  //Size of transferbuffer
   //Max Package size of tuner circuit 0x1000 and modulo 4
   //Defines the size of packages load from flash to Arduino to device.Careful because of RAM effect
   //Tested with
   //0x100 ok
-  //0x150 nok
-  //0x200 nok
-  //0x300 nok
+  //0x150 ok
+  //0x200 ok
+  //0x300 ok
+  //0x400 nok memory leak
+  uint16_t lenData = 0x100;
 
-  //Size of transferbuffer
-  //open: works only with 0x100 because of flash
-  const unsigned short lenData = 0x100;
   //transferbuffer
   uint8_t data[lenData];
 
   //If not initalized error in loading. Device reads commands ? every 2nd time after POR.
-  for (uint16_t i = 0; i < lenData; i++) data[i] = 0xff;
+  for (uint32_t i = 0; i < lenData; i++) data[i] = 0xff;
 
   //Calculate modulo to get even number
   uint16_t modulo = sizeFirmware % lenData;
 
   //How many packages ?
-  uint32_t packages = (sizeFirmware - modulo) / lenData;
-
+  const uint32_t packages = (sizeFirmware - modulo) / lenData;
   /*
     Serial.print(F("Size:"));
     Serial.print(sizeFirmware);
@@ -199,9 +196,6 @@ void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware)
     Serial.println(modulo);
   */
 
-  //Create local object to use Flash Memory
-  FlashSst26 flashSst26(PIN_FLASH_SLAVE_SELECT, SPI_FREQUENCY);
-
   //prepare circuit to load firmware
   loadInit();
 
@@ -210,11 +204,20 @@ void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware)
   {
     //initalize dataBuffer[] with 0xff
     //for (uint16_t j = 0; j < lenData; j++) data[j] = 0xff;
+
+    //does not work
+    //uint32_t address = addressFirmware + (i * lenData);
+    //Serial.println(address, HEX);
+    //flashSst26.readData(addressFirmware, data, lenData);
+
     //Read data from flash
-    flashSst26.readData(addressFirmware + i * lenData, data, lenData);
+    flashSst26.readData(addressFirmware + (i * lenData), data, lenData);
+    //i increments if lenData = 0x200;?
+    //Serial.println(i);
     //Write data to tuner
     hostLoad(data, lenData);
   }
+
 
   //last package is maybe not complete - fill up with 0xff
   if (modulo != 0)
@@ -294,7 +297,7 @@ void powerDown(bool enable, unsigned char resetPin)
 }
 
 
-//Read ststus register
+//Read status register
 void readStatusRegister(statusRegister_t& statusRegister)
 {
   unsigned char buf[4] = {0xff, 0xff, 0xff, 0xff};
@@ -354,8 +357,8 @@ bool readReply(unsigned char reply[], unsigned long len)
     for (unsigned char i = 0; i < len; i++) reply[i] = 0xff;
 
     ///wait for device - to be improved
-    delayMicroseconds(DURATION_REPLY);
-    delayMicroseconds(DURATION_REPLY);
+    //delayMicroseconds(DURATION_REPLY);
+    //delayMicroseconds(DURATION_REPLY);
 
     writeCommandArgument(cmd, sizeof(cmd), reply, len);
 
@@ -426,7 +429,7 @@ void powerUp(powerUpArguments_t powerUpArguments)
 void hostLoad(unsigned char package[], unsigned short len)
 {
   //Validity ? Maximal 4096 bytes of application image
-  if (len > 0x1000) len = 0x1000;
+  if (len > 0x1000) return;
 
   unsigned char cmd[4];
 
@@ -1472,7 +1475,6 @@ void previousService(unsigned long &serviceId, unsigned long &componentId)
 //Start first service (0 = audio) in ensemble
 void startFirstService(unsigned long &serviceId, unsigned long &componentId, uint8_t serviceType)
 {
-
   eventInformation_t eventInformation;
 
   //wait for serviceList
@@ -1601,6 +1603,8 @@ void readRsqInformation(rsqInformation_t& rsqInformation, unsigned char clearDig
   for (unsigned char i = 0; i < 23; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
+  delayMicroseconds(10000);
+  delayMicroseconds(10000);
   delayMicroseconds(10000);
   readReply(buf, sizeof(buf));
 

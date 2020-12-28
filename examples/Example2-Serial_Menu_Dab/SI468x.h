@@ -64,6 +64,7 @@
 //properties of tuner circuit
 #include "properties.h"
 
+
 const char version[8] = "0.08.05";
 
 enum SPI_FREQUENCY {SPI_FREQUENCY = 8000000UL};

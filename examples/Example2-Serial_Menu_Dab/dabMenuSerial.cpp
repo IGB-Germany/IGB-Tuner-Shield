@@ -507,15 +507,16 @@ void menuScanFrequency(char ch)
       {
         readEventInformation(eventInformation);
         delay(1000);
-        Serial.println(F("Wait..."));
+        Serial.println(F("Wait for Servicelist..."));
         if(eventInformation.serviceListAvailable == 1) break;
       }
 
       if (eventInformation.serviceListAvailable == 1)
       {
-        getEnsemble(ensembleHeader);
+        //getEnsemble(ensembleHeader);
         serialPrintSi468x::dabPrintEnsemble(ensembleHeader);
         //startfirstService
+        startFirstService(serviceId, componentId);
       }
       else
       {
