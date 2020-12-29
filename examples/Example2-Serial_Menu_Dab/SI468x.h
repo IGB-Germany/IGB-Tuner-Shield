@@ -20,12 +20,13 @@
 
   Memory needs
   UNO
-  ROM:  30774 Bytes (95%)
-  RAM:    851 Bytes (41%)
+  ROM:  39856 Bytes (92%)
+  RAM:    881 Bytes (43%)
 
   Files
   properties.h - needed for tuner circuit
   firmware.h - needed for flash memory circuit
+  Arduino.h - for standard datatypes uint8_t
 
 */
 
@@ -64,6 +65,8 @@
 //properties of tuner circuit
 #include "properties.h"
 
+//firmware
+#include "firmware.h"
 
 const char version[8] = "0.08.05";
 
@@ -96,8 +99,6 @@ enum durationsDevice_t
   DURATION_LOAD_INIT    = 4000,//4ms see flowchart; ?ms see timing
   DURATION_BOOT         = 10000,//350ms = 30 * 10000 us in loop, Boot time 63ms at analog FM, 198ms at DAB
   DURATION_PROPERTY     = 10000,//write / read PropertyValue
-  DURATION_5000_us      = 5000,
-  DURATION_10000_us     = 10000
 };
 
 //Status register 22 Bits, 3 Bytes
@@ -524,7 +525,7 @@ enum durationsDab_t
   DURATION_STOP_START_SERVICE   = 10000,
   DURATION_TUNE                 = 10000,//Seek Tune Index 600ms
   DURATION_15000_MIKROS         = 15000,
-  DURATION_10000_MIKROS         = 10000,//Get ensemble info
+  DURATION_10000_MIKRO         = 10000,//Get ensemble info
 };
 
 enum constantsDab_t
@@ -555,10 +556,10 @@ extern uint8_t index;
 extern unsigned short propertyValueListDab[NUM_PROPERTIES_DAB][2];
 
 //Ensemble - dynamic allocation
-extern struct ensembleHeader_t ensembleHeader;
+extern ensembleHeader_t ensembleHeader;
 
 //Frequency table - dynamic allocation
-extern struct frequencyTableHeader_t frequencyTableHeader;
+extern frequencyTableHeader_t frequencyTableHeader;
 
 //valid indices after bandscan
 extern indexListHeader_t indexListHeader;

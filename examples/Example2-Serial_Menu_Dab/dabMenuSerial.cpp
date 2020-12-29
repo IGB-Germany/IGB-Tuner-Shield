@@ -179,6 +179,10 @@ void menuMain(char ch)
     tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
+
+    //parse ensemble
+    getEnsemble(ensembleHeader);
+
   }
 
   //Start dedicated service in ensemble
@@ -195,6 +199,9 @@ void menuMain(char ch)
     tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
+
+    //parse ensemble
+    getEnsemble(ensembleHeader);
   }
 
   //Start dedicated service in ensemble
@@ -208,6 +215,9 @@ void menuMain(char ch)
     tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
+    
+    //parse ensemble
+    getEnsemble(ensembleHeader);
   }
 
   //Start dedicated service in ensemble
@@ -224,6 +234,9 @@ void menuMain(char ch)
     tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
+
+    //parse ensemble
+    getEnsemble(ensembleHeader);
   }
 
   //Start dedicated service in ensemble
@@ -239,6 +252,9 @@ void menuMain(char ch)
     tuneIndex(index);
     //Starts an audio or data service
     startService(serviceId, componentId);
+
+    //parse ensemble
+    getEnsemble(ensembleHeader);
   }
 
   //Start service
@@ -500,15 +516,15 @@ void menuScanFrequency(char ch)
       Serial.println(index);
       tuneIndex(index);
 
-     
+
       eventInformation_t eventInformation;
       //wait for ensemble list available
-      for(uint8_t i = 0; i < 10; i++)
+      for (uint8_t i = 0; i < 10; i++)
       {
         readEventInformation(eventInformation);
         delay(1000);
         Serial.println(F("Wait for Servicelist..."));
-        if(eventInformation.serviceListAvailable == 1) break;
+        if (eventInformation.serviceListAvailable == 1) break;
       }
 
       if (eventInformation.serviceListAvailable == 1)

@@ -1,9 +1,6 @@
 //Driver for tuner circuit SI468x by IGB
 #include "SI468x.h"
 
-//firmware
-#include "firmware.h"
-
 //SPI communication layer
 #include "ComDriverSpi.h"
 ComDriverSpi tuner(PIN_DEVICE_SLAVE_SELECT, SPI_FREQUENCY);
@@ -157,14 +154,14 @@ void deviceBegin()
 void loadFirmware(unsigned long addressFirmware, unsigned long sizeFirmware)
 {
   //to measure time to load firmware
-//#define SPEED
+  //#define SPEED
 #ifdef SPEED
   uint32_t start = millis();
   uint32_t zeit;
 #endif
   //time for firmware 1683ms @ package 0x100, 8MHz
   //time for firmware 1530ms @ package 0x300, 8MHz
-  
+
   //Size of transferbuffer
   //Max Package size of tuner circuit 0x1000 and modulo 4
   //Defines the size of packages load from flash to Arduino to device.Careful because of RAM effect
@@ -358,7 +355,7 @@ bool readReply(unsigned char reply[], unsigned long len)
 
     ///wait for device - to be improved
     //delayMicroseconds(DURATION_REPLY);
-    //delayMicroseconds(DURATION_REPLY);
+    delayMicroseconds(DURATION_REPLY);
 
     writeCommandArgument(cmd, sizeof(cmd), reply, len);
 
@@ -642,7 +639,6 @@ unsigned short readPropertyValue(unsigned short id)
   writeCommand(cmd, sizeof(cmd));
   delayMicroseconds(DURATION_PROPERTY);
   delayMicroseconds(DURATION_PROPERTY);
-  delayMicroseconds(DURATION_PROPERTY);
   readReply(buf, sizeof(buf));
 
   propertyValue = (unsigned short)buf[5] << 8 | buf[4];
@@ -710,8 +706,6 @@ unsigned short readRssi()
 
   return rssi;
 }
-
-
 
 
 
@@ -1322,8 +1316,8 @@ void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
     if (ensembleHeader.serviceList[i].componentList != nullptr)
     {
       delete[] ensembleHeader.serviceList[i].componentList;
-      Serial.print(F("Delete componentList of service:\t"));
-      Serial.println(i);
+      //Serial.print(F("Delete componentList of service:\t"));
+      //Serial.println(i);
     }
     //componentList deleted
     //Set pointer to component list to nullptr
@@ -1332,14 +1326,14 @@ void freeMemoryFromEnsembleList(ensembleHeader_t &ensembleHeader)
   //pointer to serviceList is available
   if (ensembleHeader.serviceList != nullptr)
   {
-    Serial.print(F("Delete serviceList\t"));
+    //Serial.print(F("Delete serviceList\t"));
     delete[] ensembleHeader.serviceList;
   }
   //Set pointer to service list to nullptr
   ensembleHeader.serviceList = nullptr;
 
-  Serial.println(F("serviceList deleted"));
-  Serial.println();
+  //Serial.println(F("serviceList deleted"));
+  //Serial.println();
 }
 
 //Search service and component in servicelist
@@ -1483,9 +1477,9 @@ void startFirstService(unsigned long &serviceId, unsigned long &componentId, uin
     //longer delay
     for (unsigned char i = 0; i < MAX_RETRY; i++)
     {
-      delayMicroseconds(10000);
-      delayMicroseconds(10000);
-      delayMicroseconds(10000);
+      delayMicroseconds(DURATION_10000_MIKRO);
+      delayMicroseconds(DURATION_10000_MIKRO);
+      delayMicroseconds(DURATION_10000_MIKRO);
     }
 
     readEventInformation(eventInformation);
@@ -1578,13 +1572,15 @@ void tuneIndex(unsigned char index, unsigned short varCap, unsigned char injecti
   for (uint8_t i = 0; i < 10; i++)
   {
     //wait 30*DURATION_TUNE
-    for (uint8_t j = 0; j < 30; j++) delayMicroseconds(DURATION_TUNE);
+    for (uint8_t j = 0; j < 30; j++)
+      delayMicroseconds(DURATION_TUNE);
 
     readReply(buf, sizeof(buf));
     Serial.print('.');
     if ((buf[0] & 1) == 1)
     {
-      for (uint8_t j = 0; j < 30; j++) delayMicroseconds(DURATION_TUNE);
+      for (uint8_t j = 0; j < 30; j++)
+        delayMicroseconds(DURATION_TUNE);
       break;
     }
   }
@@ -1603,9 +1599,9 @@ void readRsqInformation(rsqInformation_t& rsqInformation, unsigned char clearDig
   for (unsigned char i = 0; i < 23; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(10000);
-  delayMicroseconds(10000);
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_MIKRO);
+  delayMicroseconds(DURATION_10000_MIKRO);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   rsqInformation.hardMuteInterrupt =  buf[4] >> 4 & 1;
@@ -1643,7 +1639,7 @@ void readEventInformation(eventInformation_t& eventInformation, unsigned char ev
   unsigned char buf[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
   writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   eventInformation.ensembleReconfigInterrupt        = buf[4] >> 7 & 1;
@@ -1673,7 +1669,8 @@ void readEnsembleInformation(ensembleInformation_t& ensembleInformation)
   for (unsigned short i = 0; i < 26; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_MIKRO);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   ensembleInformation.ensembleId        = (unsigned short)buf[5] << 8 | buf[4];
@@ -1704,7 +1701,7 @@ void readServiceLinkingInfo(serviceLinkingInformation_t& serviceLinkingInformati
   for (unsigned short i = 0; i < bufferSize; i++) buf[i] = 0xff;
 
   writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   serviceLinkingInformation.size                = (unsigned short) buf[5] << 8 | buf[4];
@@ -1746,7 +1743,7 @@ void writeFrequencyTable(const unsigned long frequencyTable[], const unsigned ch
   uint8_t buf[4] = {0xff, 0xff, 0xff, 0xff};
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-  delayMicroseconds(10000);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 }
 
@@ -1767,7 +1764,7 @@ void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader)
 
   //read number of frequencies
   writeCommand(cmd, sizeof(cmd));
-  delayMicroseconds(DURATION_10000_us);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   //save number of frequencies in table
@@ -1794,7 +1791,7 @@ void readFrequencyTable(frequencyTableHeader_t& frequencyTableHeader)
     else
     {
       writeCommand(cmd, sizeof(cmd));
-      delayMicroseconds(DURATION_10000_us);
+      delayMicroseconds(DURATION_10000_MIKRO);
 
       //Fill index table
       //Start reading 4 Bytes per frequency
@@ -2056,8 +2053,8 @@ void readServiceInformation(serviceInformation_t& serviceInformation, unsigned l
   arg[6] = serviceId >> 24 & 0xFF;
 
   writeCommandArgument(cmd, sizeof(cmd), arg, sizeof(arg));
-  delayMicroseconds(DURATION_10000_us);
-  delayMicroseconds(DURATION_10000_us);
+  delayMicroseconds(DURATION_10000_MIKRO);
+  delayMicroseconds(DURATION_10000_MIKRO);
   readReply(buf, sizeof(buf));
 
   //serviceInfo1
